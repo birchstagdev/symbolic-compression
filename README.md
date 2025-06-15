@@ -1,6 +1,6 @@
 # 🧠 Symbolic Encoding & Decoding System
 
-This project implements a symbolic, emotion-aware compression and reconstruction system for visual scenes. Rather than storing or recovering pixel data, it captures **how humans perceive and remember** — through structure, mood, saliency, and symbolic presence.
+This project implements a symbolic, emotion-aware compression and reconstruction system for visual scenes. Rather than storing or recovering pixel data, it captures **how humans perceive and remember** through structure, mood, saliency, and symbolic presence.
 
 ---
 
