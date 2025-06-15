@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vision Compression Pipeline-Full Implementation</title>
+    <style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: white;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .main-pipeline {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .pipeline-section {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .section-title {
+        font-size: 1.3em;
+        margin-bottom: 15px;
+        color: #ffd700;
+        text-align: center;
+    }
+
+    .canvas-container {
+        margin-bottom: 15px;
+        text-align: center;
+    }
+
+    canvas {
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+        background: white;
+        max-width: 100%;
+    }
+
+    #drawingCanvas {
+        cursor: crosshair;
+    }
+
+    .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 15px;
+        justify-content: center;
+    }
+
+    button {
+        background: linear-gradient(45deg, #ff6b6b, #ff8787);
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 0.85em;
+        transition: all 0.3s ease;
+    }
+
+    button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .preset-btn {
+        background: linear-gradient(45deg, #4ecdc4, #44a08d);
+        font-size: 0.8em;
+        padding: 6px 10px;
+    }
+
+    .vision-code {
+        background: rgba(0, 0, 0, 0.4);
+        padding: 15px;
+        border-radius: 10px;
+        font-family: 'Courier New', monospace;
+        font-size: 1.1em;
+        letter-spacing: 1px;
+        text-align: center;
+        margin-bottom: 15px;
+        border: 2px solid #ffd700;
+        word-break: break-all;
+    }
+
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .analysis-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 10px;
+        padding: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .stats {
+        display: flex;
+        justify-content: space-around;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 15px;
+        border-radius: 10px;
+        margin-top: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-number {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: #ffd700;
+    }
+
+    .reconstruction-controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        justify-content: center;
+    }
+
+    .object-template {
+        margin: 5px 0;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 5px;
+        font-size: 0.9em;
+    }
+
+    .color-preview {
+        display: inline-block;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+
+    input[type="color"] {
+        width: 30px;
+        height: 30px;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        margin: 5px;
+    }
+
+    .breakdown {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 10px;
+        font-size: 0.85em;
+    }
+
+    .breakdown-item {
+        margin: 5px 0;
+        padding: 5px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        border-left: 3px solid #ffd700;
+    }
+
+    .demo-codes {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .demo-code-btn {
+        background: linear-gradient(45deg, #9b59b6, #8e44ad);
+        font-size: 0.8em;
+        padding: 6px 10px;
+    }
+
+    @media (max-width: 1000px) {
+        .main-pipeline {
+            grid-template-columns: 1fr;
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠Human Vision-Based Ultra-Compression</h1>
+            <p>Complete pipeline: Draw→ Analyze→ Encode→ Reconstruct</p>
+        </div>
+        <!--INPUT SECTION-->
+        <div class="pipeline-section">
+            <h3 class="section-title">🎨Input: Draw Scene</h3>
+            <div class="canvas-container">
+                <canvas id="drawingCanvas" width="280" height="200"></canvas>
+            </div>
+            <div class="controls">
+                <input type="color" id="colorPicker" value="#000000">
+                <button onclick="clearCanvas()">Clear</button>
+            </div>
+            <div class="controls">
+                <button class="preset-btn" onclick="drawPreset('person')">👤</button>
+                <button class="preset-btn" onclick="drawPreset('car')">🚗</button>
+                <button class="preset-btn" onclick="drawPreset('house')">🏠</button>
+                <button class="preset-btn" onclick="drawPreset('tree')">🌳</button>
+                <button class="preset-btn" onclick="drawPreset('dog')">🐕</button>
+            </div>
+            <div class="controls">
+                <button onclick="analyzeAndEncode()">🔍Analyze & Encode</button>
+            </div>
+        </div>
+        <!--ENCODING SECTION-->
+        <div class="pipeline-section">
+            <h3 class="section-title">📝Vision Code</h3>
+            <div class="vision-code" id="visionCode">
+                Draw and analyze to generate code...
+            </div>
+            <div class="demo-codes">
+                <button class="demo-code-btn" onclick="loadDemoCode('1B4C15729A2341BC78D4E2F801')">Dog Park</button>
+                <button class="demo-code-btn" onclick="loadDemoCode('0D2A05436B1278C3E4F6A8B9C2')">Person Indoor</button>
+                <button class="demo-code-btn" onclick="loadDemoCode('2C1B35527D3451BE89F2A1C4D7')">Urban Car</button>
+            </div>
+            <div class="breakdown" id="codeBreakdown">
+                <div class="breakdown-item">
+                    <strong>Scene(4):</strong> Environment, lighting, composition, depth
+                </div>
+                <div class="breakdown-item">
+                    <strong>Objects(12):</strong> Type, size, position for up to 3 objects
+                </div>
+                <div class="breakdown-item">
+                    <strong>Relations(6):</strong> Spatial interactions, color harmony
+                </div>
+                <div class="breakdown-item">
+                    <strong>Details(4):</strong> Texture, edges, lighting effects
+                </div>
+            </div>
+        </div>
+        <!--RECONSTRUCTION SECTION-->
+        <div class="pipeline-section">
+            <h3 class="section-title">🔧Reconstruction</h3>
+            <div class="canvas-container">
+                <canvas id="reconstructionCanvas" width="280" height="200"></canvas>
+            </div>
+            <div class="reconstruction-controls">
+                <button onclick="reconstructFromCode()">🎯Reconstruct</button>
+                <button onclick="compareImages()">📊Compare</button>
+            </div>
+            <div id="reconstructionInfo">
+                <div class="object-template">
+                    Reconstruction engine ready...
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <h4>🎯Visual Analysis</h4>
+            <div id="analysisResults">
+                Draw something to see analysis results
+            </div>
+        </div>
+        <div class="analysis-card">
+            <h4>🔍Object Detection</h4>
+            <div id="objectDetection">
+                No objects detected yet
+            </div>
+        </div>
+        <div class="analysis-card">
+            <h4>📈Performance</h4>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="compressionRatio">∞</div>
+                    <div>Compression</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="codeLength">0</div>
+                    <div>Characters</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="accuracy">0</div>
+                    <div>Accuracy %</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    // Canvas setup
+    const drawCanvas = document.getElementById('drawingCanvas');
+    const drawCtx = drawCanvas.getContext('2d');
+    const reconCanvas = document.getElementById('reconstructionCanvas');
+    const reconCtx = reconCanvas.getContext('2d');
+
+    let isDrawing = false;
+    let objects = [];
+    let currentCode = '';
+
+    // Object templates for reconstruction
+    const objectTemplates = {
+        '0': {
+            name: 'person',
+            shape: 'stick-figure'
+        },
+        '1': {
+            name: 'animal-4leg',
+            shape: 'quadruped'
+        },
+        '2': {
+            name: 'animal-other',
+            shape: 'organic'
+        },
+        '3': {
+            name: 'vehicle',
+            shape: 'rectangle-wheels'
+        },
+        '4': {
+            name: 'building',
+            shape: 'house'
+        },
+        '5': {
+            name: 'tree',
+            shape: 'tree'
+        },
+        '6': {
+            name: 'furniture',
+            shape: 'rectangle'
+        },
+        '7': {
+            name: 'food',
+            shape: 'circle'
+        },
+        '8': {
+            name: 'tool',
+            shape: 'line'
+        },
+        '9': {
+            name: 'sky-element',
+            shape: 'cloud'
+        }
+    };
+
+    const environmentColors = {
+        '0': {
+            bg: '#f0f0f0',
+            name: 'Indoor'
+        }, // Indoor
+        '1': {
+            bg: '#87ceeb',
+            name: 'Nature'
+        }, // Outdoor-nature  
+        '2': {
+            bg: '#d3d3d3',
+            name: 'Urban'
+        }, // Outdoor-urban
+        '3': {
+            bg: '#696969',
+            name: 'Vehicle'
+        }, // Vehicle
+        '4': {
+            bg: '#4682b4',
+            name: 'Water'
+        }, // Water
+        '5': {
+            bg: '#87ceeb',
+            name: 'Sky'
+        }, // Sky-dominant
+        '6': {
+            bg: '#fffacd',
+            name: 'Close-up'
+        }, // Close-up
+        '7': {
+            bg: '#dda0dd',
+            name: 'Abstract'
+        }, // Abstract
+        '8': {
+            bg: '#ffffff',
+            name: 'Text'
+        }, // Text-dominant
+        '9': {
+            bg: '#f5f5dc',
+            name: 'Mixed'
+        } // Mixed
+    };
+
+    // Drawing functionality
+    drawCanvas.addEventListener('mousedown', startDrawing);
+    drawCanvas.addEventListener('mousemove', draw);
+    drawCanvas.addEventListener('mouseup', stopDrawing);
+    drawCanvas.addEventListener('mouseout', stopDrawing);
+
+    function startDrawing(e) {
+        isDrawing = true;
+        draw(e);
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+
+        const rect = drawCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        drawCtx.strokeStyle = document.getElementById('colorPicker').value;
+        drawCtx.lineWidth = 2;
+        drawCtx.lineCap = 'round';
+
+        drawCtx.lineTo(x, y);
+        drawCtx.stroke();
+        drawCtx.beginPath();
+        drawCtx.moveTo(x, y);
+    }
+
+    function stopDrawing() {
+        if (isDrawing) {
+            isDrawing = false;
+            drawCtx.beginPath();
+        }
+    }
+
+    function clearCanvas() {
+        drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        objects = [];
+        currentCode = '';
+        document.getElementById('visionCode').textContent = 'Draw and analyze to generate code...';
+    }
+
+    function drawPreset(type) {
+        const color = document.getElementById('colorPicker').value;
+        drawCtx.strokeStyle = color;
+        drawCtx.fillStyle = color;
+        drawCtx.lineWidth = 2;
+
+        const centerX = drawCanvas.width / 2 + (Math.random() - 0.5) * 60;
+        const centerY = drawCanvas.height / 2 + (Math.random() - 0.5) * 40;
+
+        switch (type) {
+            case 'person':
+                drawCtx.beginPath();
+                drawCtx.arc(centerX, centerY - 30, 12, 0, Math.PI * 2);
+                drawCtx.stroke();
+                drawCtx.beginPath();
+                drawCtx.moveTo(centerX, centerY - 18);
+                drawCtx.lineTo(centerX, centerY + 20);
+                drawCtx.moveTo(centerX - 15, centerY - 5);
+                drawCtx.lineTo(centerX + 15, centerY - 5);
+                drawCtx.moveTo(centerX, centerY + 20);
+                drawCtx.lineTo(centerX - 12, centerY + 40);
+                drawCtx.moveTo(centerX, centerY + 20);
+                drawCtx.lineTo(centerX + 12, centerY + 40);
+                drawCtx.stroke();
+                addObject('0', centerX, centerY, 5, color);
+                break;
+
+            case 'car':
+                drawCtx.fillRect(centerX - 30, centerY - 8, 60, 16);
+                drawCtx.fillRect(centerX - 20, centerY - 20, 40, 12);
+                drawCtx.beginPath();
+                drawCtx.arc(centerX - 15, centerY + 8, 6, 0, Math.PI * 2);
+                drawCtx.arc(centerX + 15, centerY + 8, 6, 0, Math.PI * 2);
+                drawCtx.fill();
+                addObject('3', centerX, centerY, 6, color);
+                break;
+
+            case 'house':
+                drawCtx.fillRect(centerX - 30, centerY - 5, 60, 35);
+                drawCtx.beginPath();
+                drawCtx.moveTo(centerX - 35, centerY - 5);
+                drawCtx.lineTo(centerX, centerY - 30);
+                drawCtx.lineTo(centerX + 35, centerY - 5);
+                drawCtx.fill();
+                addObject('4', centerX, centerY, 7, color);
+                break;
+
+            case 'tree':
+                drawCtx.fillRect(centerX - 4, centerY + 10, 8, 20);
+                drawCtx.beginPath();
+                drawCtx.arc(centerX, centerY - 5, 20, 0, Math.PI * 2);
+                drawCtx.fill();
+                addObject('5', centerX, centerY, 6, color);
+                break;
+
+            case 'dog':
+                drawCtx.fillRect(centerX - 15, centerY, 30, 12);
+                drawCtx.beginPath();
+                drawCtx.arc(centerX + 12, centerY - 3, 8, 0, Math.PI * 2);
+                drawCtx.fill();
+                drawCtx.fillRect(centerX - 18, centerY + 12, 4, 8);
+                drawCtx.fillRect(centerX - 8, centerY + 12, 4, 8);
+                drawCtx.fillRect(centerX + 2, centerY + 12, 4, 8);
+                drawCtx.fillRect(centerX + 12, centerY + 12, 4, 8);
+                addObject('1', centerX, centerY, 4, color);
+                break;
+        }
+    }
+
+    function addObject(category, x, y, size, color) {
+        objects.push({
+            category: category,
+            x: x,
+            y: y,
+            size: size,
+            color: color
+        });
+    }
+
+    function analyzeAndEncode() {
+        const imageData = drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+        
+        // Perceptual analysis pipeline
+        const analysis = performPerceptualAnalysis(imageData);
+        const complexity = calculateSceneComplexity(analysis);
+        
+        // Adaptive encoding depth based on complexity
+        const encodingDepth = determineEncodingDepth(complexity);
+        
+        currentCode = generateAdaptiveVisionCode(analysis, encodingDepth);
+        document.getElementById('visionCode').textContent = currentCode;
+        
+        updateAnalysisWithPerception(analysis);
+        updateCodeBreakdown(currentCode);
+        
+        // Calculate real accuracy based on perceptual similarity
+        const accuracy = calculatePerceptualAccuracy(analysis);
+        document.getElementById('accuracy').textContent = Math.round(accuracy);
+        
+        const originalSize = drawCanvas.width * drawCanvas.height * 4;
+        const compressedSize = currentCode.length;
+        const ratio = Math.round(originalSize / compressedSize);
+        document.getElementById('compressionRatio').textContent = ratio + ':1';
+        document.getElementById('codeLength').textContent = currentCode.length;
+    }
+
+    function determineEncodingDepth(complexity) {
+        const edgeDensity = complexity.edgeDensity;
+        const objectCount = complexity.perceptualObjects?.length || 0;
+        const colorVariance = complexity.colorVariance?.uniqueColorCount || 1;
+        
+        const complexityScore = (edgeDensity * 100) + (objectCount * 10) + (colorVariance * 2);
+        
+        if (complexityScore < 20) return 16; // Simple scenes
+        if (complexityScore < 60) return 26; // Standard scenes
+        return 32; // Complex scenes
+    }
+
+    function generateAdaptiveVisionCode(analysis, depth) {
+        let code = '';
+        
+        // Scene context (4 chars)
+        code += encodeSceneContextFromAnalysis(analysis);
+        
+        // Objects (variable length based on depth)
+        const objectChars = Math.min(depth - 10, 18); // Reserve chars for scene and details
+        code += encodeObjectsFromAnalysis(analysis, objectChars);
+        
+        // Relationships (4-6 chars based on depth)
+        const relationChars = depth > 26 ? 6 : 4;
+        code += encodeRelationshipsFromAnalysis(analysis, relationChars);
+        
+        // Details (2-4 chars based on depth)
+        const detailChars = depth - code.length;
+        code += encodeDetailsFromAnalysis(analysis, detailChars);
+        
+        return code.substring(0, depth);
+    }
+
+    function performPerceptualAnalysis(imageData) {
+        const data = imageData.data;
+        const width = imageData.width;
+        const height = imageData.height;
+        
+        return {
+            edgeDensity: calculateEdgeDensity(data, width, height),
+            colorVariance: calculateColorVariance(data),
+            shapeComplexity: detectShapes(data, width, height),
+            spatialDistribution: analyzeSpatialDistribution(data, width, height),
+            visualSaliency: calculateVisualSaliency(data, width, height),
+            perceptualObjects: detectPerceptualObjects(data, width, height)
+        };
+    }
+
+    function isBackground(data, idx) {
+        const r = data[idx * 4];
+        const g = data[idx * 4 + 1];
+        const b = data[idx * 4 + 2];
+        
+        // Check if pixel is close to white (background)
+        return (r > 240 && g > 240 && b > 240);
+    }
+
+    function floodFill(data, width, height, startX, startY, visited) {
+        const stack = [{x: startX, y: startY}];
+        const component = {
+            pixels: [],
+            size: 0,
+            minX: startX, maxX: startX,
+            minY: startY, maxY: startY,
+            dominantColor: null
+        };
+        
+        const targetColor = getRGBAt(data, startX, startY);
+        
+        while (stack.length > 0) {
+            const {x, y} = stack.pop();
+            const idx = y * width + x;
+            
+            if (x < 0 || x >= width || y < 0 || y >= height || visited[idx]) continue;
+            
+            const currentColor = getRGBAt(data, x, y);
+            if (colorDistance(targetColor, currentColor) > 50) continue;
+            
+            visited[idx] = true;
+            component.pixels.push({x, y});
+            component.size++;
+            
+            component.minX = Math.min(component.minX, x);
+            component.maxX = Math.max(component.maxX, x);
+            component.minY = Math.min(component.minY, y);
+            component.maxY = Math.max(component.maxY, y);
+            
+            stack.push({x: x+1, y}, {x: x-1, y}, {x, y: y+1}, {x, y: y-1});
+        }
+        
+        component.centroid = {
+            x: (component.minX + component.maxX) / 2,
+            y: (component.minY + component.maxY) / 2
+        };
+        
+        component.boundingBox = {
+            width: component.maxX - component.minX,
+            height: component.maxY - component.minY
+        };
+        
+        component.dominantColor = targetColor;
+        
+        return component;
+    }
+
+    function getRGBAt(data, x, y) {
+        const idx = (y * 280 + x) * 4; // Assuming canvas width of 280
+        return {
+            r: data[idx] || 255,
+            g: data[idx + 1] || 255,
+            b: data[idx + 2] || 255
+        };
+    }
+
+    function colorDistance(color1, color2) {
+        return Math.sqrt(
+            Math.pow(color1.r - color2.r, 2) +
+            Math.pow(color1.g - color2.g, 2) +
+            Math.pow(color1.b - color2.b, 2)
+        );
+    }
+
+    function calculateEdgeDensity(data, width, height) {
+        let edgeCount = 0;
+        const threshold = 30;
+        
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const idx = (y * width + x) * 4;
+                const current = data[idx] + data[idx + 1] + data[idx + 2];
+                
+                // Check horizontal and vertical gradients
+                const right = data[idx + 4] + data[idx + 5] + data[idx + 6];
+                const down = data[((y + 1) * width + x) * 4] + data[((y + 1) * width + x) * 4 + 1] + data[((y + 1) * width + x) * 4 + 2];
+                
+                if (Math.abs(current - right) > threshold || Math.abs(current - down) > threshold) {
+                    edgeCount++;
+                }
+            }
+        }
+        
+        return edgeCount / (width * height);
+    }
+
+    function calculateColorVariance(data) {
+        const colors = [];
+        for (let i = 0; i < data.length; i += 16) { // Sample every 4th pixel
+            colors.push({
+                r: data[i],
+                g: data[i + 1],
+                b: data[i + 2]
+            });
+        }
+        
+        // Calculate color clustering
+        const uniqueColors = new Set();
+        colors.forEach(color => {
+            // Quantize colors to reduce noise
+            const quantized = Math.floor(color.r / 32) + ',' + Math.floor(color.g / 32) + ',' + Math.floor(color.b / 32);
+            uniqueColors.add(quantized);
+        });
+        
+        return {
+            uniqueColorCount: uniqueColors.size,
+            dominantColors: findDominantColors(colors)
+        };
+    }
+
+    function detectPerceptualObjects(data, width, height) {
+        const objects = [];
+        const visited = new Array(width * height).fill(false);
+        
+        // Connected component analysis for shape detection
+        for (let y = 0; y < height; y += 5) { // Sample grid
+            for (let x = 0; x < width; x += 5) {
+                const idx = y * width + x;
+                if (!visited[idx] && !isBackground(data, idx)) {
+                    const component = floodFill(data, width, height, x, y, visited);
+                    if (component.size > 20) { // Minimum object size
+                        objects.push({
+                            centroid: component.centroid,
+                            boundingBox: component.boundingBox,
+                            area: component.size,
+                            shape: classifyShape(component),
+                            color: component.dominantColor
+                        });
+                    }
+                }
+            }
+        }
+        
+        return objects;
+    }
+
+    function generateVisionCode() {
+        let code = '';
+
+        // Scene Context (4 characters)
+        code += encodeSceneContext();
+
+        // Primary Objects (12 characters, up to 3 objects)
+        code += encodeObjects();
+
+        // Relationships (6 characters)
+        code += encodeRelationships();
+
+        // Detail Layer (4 characters)
+        code += encodeDetails();
+
+        // Ensure exactly 26 characters
+        while (code.length < 26) {
+            code += '0';
+        }
+
+        return code.substring(0, 26);
+    }
+
+    function encodeSceneContext() {
+        let context = '';
+
+        // Environment type (determine from objects)
+        if (objects.some(obj => obj.category === '4')) context += '2'; // Urban (building)
+        else if (objects.some(obj => obj.category === '5')) context += '1'; // Nature (tree)
+        else if (objects.some(obj => obj.category === '3')) context += '3'; // Vehicle
+        else context += '0'; // Indoor default
+
+        // Lighting (medium bright)
+        context += 'B';
+
+        // Composition (based on object distribution)
+        const avgX = objects.reduce((sum, obj) => sum + obj.x, 0) / objects.length;
+        const centerX = drawCanvas.width / 2;
+        if (Math.abs(avgX - centerX) < 30) context += '4'; // Centered
+        else context += 'J'; // Off-center
+
+        // Depth (medium)
+        context += 'M';
+
+        return context;
+    }
+
+    function encodeObjects() {
+        let objectCode = '';
+        const maxObjects = Math.min(objects.length, 3);
+
+        for (let i = 0; i < maxObjects; i++) {
+            const obj = objects[i];
+
+            // Object category
+            objectCode += obj.category;
+
+            // Size (convert to 0-9 scale)
+            objectCode += Math.min(9, obj.size).toString();
+
+            // Position X (0-9 scale)
+            const posX = Math.floor((obj.x / drawCanvas.width) * 9);
+            objectCode += Math.min(9, posX).toString();
+
+            // Position Y (0-9 scale)  
+            const posY = Math.floor((obj.y / drawCanvas.height) * 9);
+            objectCode += Math.min(9, posY).toString();
+        }
+
+        // Pad remaining object slots
+        while (objectCode.length < 12) {
+            objectCode += '0';
+        }
+
+        return objectCode;
+    }
+
+    function encodeRelationships() {
+        let relCode = '';
+
+        // Object interactions
+        if (objects.length > 1) {
+            relCode += '15'; // Multiple objects, separated
+        } else {
+            relCode += '00'; // Single object
+        }
+
+        // Color harmony
+        const uniqueColors = [...new Set(objects.map(obj => obj.color))];
+        if (uniqueColors.length === 1) {
+            relCode += '00'; // Monochrome
+        } else if (uniqueColors.length === 2) {
+            relCode += '01'; // Complementary
+        } else {
+            relCode += '03'; // High contrast
+        }
+
+        // Motion/action (static)
+        relCode += '00';
+
+        return relCode;
+    }
+
+    function encodeDetails() {
+        return '0100'; // Simplified: smooth texture, clean edges, flat lighting, clear atmosphere
+    }
+
+    function loadDemoCode(code) {
+        currentCode = code;
+        document.getElementById('visionCode').textContent = code;
+        updateCodeBreakdown(code);
+
+        // Show what this code represents
+        const sceneType = environmentColors[code[0]]?.name || 'Unknown';
+        document.getElementById('analysisResults').innerHTML = `
+                <p><strong>Demo Scene:</strong> ${sceneType}</p>
+                <p><strong>Code:</strong> ${code}</p>
+                <p>Click "Reconstruct" to see the decoded image</p>
+            `;
+    }
+
+    function reconstructFromCode() {
+        if (!currentCode || currentCode.length < 26) {
+            alert('No valid code to reconstruct from!');
+            return;
+        }
+
+        // Clear reconstruction canvas
+        reconCtx.clearRect(0, 0, reconCanvas.width, reconCanvas.height);
+
+        // Decode and reconstruct
+        const decoded = decodeVisionCode(currentCode);
+        renderReconstructedScene(decoded);
+
+        // Update info
+        document.getElementById('reconstructionInfo').innerHTML = `
+                <div class="object-template">
+                    <strong>Reconstructed Scene:</strong> ${decoded.environment.name}
+                </div>
+                <div class="object-template">
+                    <strong>Objects:</strong> ${decoded.objects.length} detected
+                </div>
+                ${decoded.objects.map((obj, i) => `
+                    <div class="object-template">
+                        ${i + 1}. ${objectTemplates[obj.category]?.name || 'Unknown'} at (${obj.x}, ${obj.y})
+                    </div>
+                `).join('')}
+            `;
+    }
+
+    function decodeVisionCode(code) {
+        const decoded = {
+            environment: environmentColors[code[0]] || environmentColors['0'],
+            lighting: code[1],
+            composition: code[2],
+            depth: code[3],
+            objects: [],
+            relationships: code.substring(16, 22),
+            details: code.substring(22, 26)
+        };
+
+        // Decode objects (3 objects max, 4 chars each)
+        for (let i = 0; i < 3; i++) {
+            const startIdx = 4 + (i * 4);
+            const objCode = code.substring(startIdx, startIdx + 4);
+
+            if (objCode[0] !== '0' || i === 0) { // Skip empty objects except first
+                const category = objCode[0];
+                const size = parseInt(objCode[1]) || 5;
+                const posX = (parseInt(objCode[2]) || 4) * (reconCanvas.width / 9);
+                const posY = (parseInt(objCode[3]) || 4) * (reconCanvas.height / 9);
+
+                if (objectTemplates[category]) {
+                    decoded.objects.push({
+                        category: category,
+                        size: size,
+                        x: posX,
+                        y: posY,
+                        template: objectTemplates[category]
+                    });
+                }
+            }
+        }
+
+        return decoded;
+    }
+
+    function renderReconstructedScene(decoded) {
+        // Set background based on environment
+        reconCtx.fillStyle = decoded.environment.bg;
+        reconCtx.fillRect(0, 0, reconCanvas.width, reconCanvas.height);
+
+        // Render each object
+        decoded.objects.forEach(obj => {
+            renderObject(obj, reconCtx);
+        });
+    }
+
+    function renderObject(obj, ctx) {
+        const template = obj.template;
+        const scale = obj.size / 5; // Normalize size
+        const colors = ['#8B4513', '#228B22', '#FF6347', '#4169E1', '#FFD700', '#FF69B4'];
+        const color = colors[parseInt(obj.category) % colors.length];
+
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+
+        switch (template.shape) {
+            case 'stick-figure':
+                // Head
+                ctx.beginPath();
+                ctx.arc(obj.x, obj.y - 20 * scale, 8 * scale, 0, Math.PI * 2);
+                ctx.stroke();
+                // Body
+                ctx.beginPath();
+                ctx.moveTo(obj.x, obj.y - 12 * scale);
+                ctx.lineTo(obj.x, obj.y + 15 * scale);
+                // Arms
+                ctx.moveTo(obj.x - 12 * scale, obj.y - 5 * scale);
+                ctx.lineTo(obj.x + 12 * scale, obj.y - 5 * scale);
+                // Legs
+                ctx.moveTo(obj.x, obj.y + 15 * scale);
+                ctx.lineTo(obj.x - 10 * scale, obj.y + 30 * scale);
+                ctx.moveTo(obj.x, obj.y + 15 * scale);
+                ctx.lineTo(obj.x + 10 * scale, obj.y + 30 * scale);
+                ctx.stroke();
+                break;
+
+            case 'quadruped':
+                // Body
+                ctx.fillRect(obj.x - 12 * scale, obj.y - 6 * scale, 24 * scale, 10 * scale);
+                // Head
+                ctx.beginPath();
+                ctx.arc(obj.x + 10 * scale, obj.y - 2 * scale, 6 * scale, 0, Math.PI * 2);
+                ctx.fill();
+                // Legs
+                ctx.fillRect(obj.x - 10 * scale, obj.y + 4 * scale, 3 * scale, 8 * scale);
+                ctx.fillRect(obj.x - 2 * scale, obj.y + 4 * scale, 3 * scale, 8 * scale);
+                ctx.fillRect(obj.x + 6 * scale, obj.y + 4 * scale, 3 * scale, 8 * scale);
+                ctx.fillRect(obj.x + 14 * scale, obj.y + 4 * scale, 3 * scale, 8 * scale);
+                break;
+
+            case 'rectangle-wheels':
+                // Car body
+                ctx.fillRect(obj.x - 20 * scale, obj.y - 6 * scale, 40 * scale, 12 * scale);
+                ctx.fillRect(obj.x - 12 * scale, obj.y - 15 * scale, 24 * scale, 9 * scale);
+                // Wheels
+                ctx.beginPath();
+                ctx.arc(obj.x - 10 * scale, obj.y + 6 * scale, 4 * scale, 0, Math.PI * 2);
+                ctx.arc(obj.x + 10 * scale, obj.y + 6 * scale, 4 * scale, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            case 'house':
+                // House body
+                ctx.fillRect(obj.x - 20 * scale, obj.y - 2 * scale, 40 * scale, 25 * scale);
+                // Roof
+                ctx.beginPath();
+                ctx.moveTo(obj.x - 25 * scale, obj.y - 2 * scale);
+                ctx.lineTo(obj.x, obj.y - 20 * scale);
+                ctx.lineTo(obj.x + 25 * scale, obj.y - 2 * scale);
+                ctx.fill();
+                // Door
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(obj.x - 4 * scale, obj.y + 8 * scale, 8 * scale, 15 * scale);
+                break;
+
+            case 'tree':
+                // Trunk
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(obj.x - 3 * scale, obj.y + 8 * scale, 6 * scale, 15 * scale);
+                // Leaves
+                ctx.fillStyle = '#228B22';
+                ctx.beginPath();
+                ctx.arc(obj.x, obj.y - 5 * scale, 15 * scale, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            case 'circle':
+                ctx.beginPath();
+                ctx.arc(obj.x, obj.y, 12 * scale, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            case 'rectangle':
+                ctx.fillRect(obj.x - 15 * scale, obj.y - 10 * scale, 30 * scale, 20 * scale);
+                break;
+
+            case 'line':
+                ctx.beginPath();
+                ctx.moveTo(obj.x - 15 * scale, obj.y);
+                ctx.lineTo(obj.x + 15 * scale, obj.y);
+                ctx.lineWidth = 4 * scale;
+                ctx.stroke();
+                break;
+
+            case 'cloud':
+                ctx.beginPath();
+                ctx.arc(obj.x - 10 * scale, obj.y, 8 * scale, 0, Math.PI * 2);
+                ctx.arc(obj.x, obj.y - 5 * scale, 10 * scale, 0, Math.PI * 2);
+                ctx.arc(obj.x + 10 * scale, obj.y, 8 * scale, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            default:
+                // Default shape
+                ctx.fillRect(obj.x - 10 * scale, obj.y - 10 * scale, 20 * scale, 20 * scale);
+        }
+    }
+
+    function updateAnalysis() {
+        const analysis = document.getElementById('analysisResults');
+        const objectDetection = document.getElementById('objectDetection');
+
+        analysis.innerHTML = `
+                <p><strong>Objects Detected:</strong> ${objects.length}</p>
+                <p><strong>Dominant Colors:</strong> ${getUniqueColors().length}</p>
+                <p><strong>Scene Type:</strong> ${determineSceneType()}</p>
+                <p><strong>Complexity:</strong> ${objects.length > 2 ? 'High' : objects.length > 0 ? 'Medium' : 'Low'}</p>
+            `;
+
+        objectDetection.innerHTML = objects.map((obj, i) => {
+            const template = objectTemplates[obj.category];
+            return `
+                    <div class="object-template">
+                        <span class="color-preview" style="background-color:${obj.color}"></span>
+                        ${i + 1}. ${template?.name || 'Unknown'} at (${Math.round(obj.x)}, ${Math.round(obj.y)})
+                    </div>
+                `;
+        }).join('') || 'No objects detected';
+    }
+
+    function updateCodeBreakdown(code) {
+        if (code.length < 26) return;
+
+        const breakdown = document.getElementById('codeBreakdown');
+        const envType = environmentColors[code[0]]?.name || 'Unknown';
+
+        breakdown.innerHTML = `
+                <div class="breakdown-item">
+                    <strong>Scene (${code.substring(0, 4)}):</strong> ${envType}, lighting:${code[1]}, composition:${code[2]}, depth:${code[3]}
+                </div>
+                <div class="breakdown-item">
+                    <strong>Object 1 (${code.substring(4, 8)}):</strong> ${objectTemplates[code[4]]?.name || 'Unknown'}, size:${code[5]}, pos:(${code[6]}, ${code[7]})
+                </div>
+                <div class="breakdown-item">
+                    <strong>Object 2 (${code.substring(8, 12)}):</strong> ${objectTemplates[code[8]]?.name || 'Empty'}, size:${code[9]}, pos:(${code[10]}, ${code[11]})
+                </div>
+                <div class="breakdown-item">
+                    <strong>Object 3 (${code.substring(12, 16)}):</strong> ${objectTemplates[code[12]]?.name || 'Empty'}, size:${code[13]}, pos:(${code[14]}, ${code[15]})
+                </div>
+                <div class="breakdown-item">
+                    <strong>Relations (${code.substring(16, 22)}):</strong> Interactions:${code.substring(16, 18)}, colors:${code.substring(18, 20)}, motion:${code.substring(20, 22)}
+                </div>
+                <div class="breakdown-item">
+                    <strong>Details (${code.substring(22, 26)}):</strong> Texture:${code[22]}, edges:${code[23]}, lighting:${code[24]}, atmosphere:${code[25]}
+                </div>
+            `;
+    }
+
+    function getUniqueColors() {
+        return [...new Set(objects.map(obj => obj.color))];
+    }
+
+    function determineSceneType() {
+        if (objects.some(obj => obj.category === '4')) return 'Urban';
+        if (objects.some(obj => obj.category === '5')) return 'Nature';
+        if (objects.some(obj => obj.category === '3')) return 'Transportation';
+        if (objects.some(obj => obj.category === '0')) return 'People';
+        return 'General';
+    }
+
+    function compareImages() {
+        if (!currentCode) {
+            alert('No code to compare! Generate a code first.');
+            return;
+        }
+        
+        // Get original image analysis
+        const originalImageData = drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+        const originalAnalysis = performPerceptualAnalysis(originalImageData);
+        
+        // Get reconstructed image analysis
+        const reconstructedImageData = reconCtx.getImageData(0, 0, reconCanvas.width, reconCanvas.height);
+        const reconstructedAnalysis = performPerceptualAnalysis(reconstructedImageData);
+        
+        // Calculate perceptual similarity
+        const similarity = calculatePerceptualSimilarity(originalAnalysis, reconstructedAnalysis);
+        
+        document.getElementById('accuracy').textContent = Math.round(similarity * 100);
+        
+        alert(`Perceptual Comparison Results:
+    Original objects: ${originalAnalysis.perceptualObjects.length}
+    Reconstructed objects: ${reconstructedAnalysis.perceptualObjects.length}
+    Shape similarity: ${Math.round(similarity * 100)}%
+    Color similarity: ${Math.round(calculateColorSimilarity(originalAnalysis, reconstructedAnalysis) * 100)}%
+    Spatial accuracy: ${Math.round(calculateSpatialSimilarity(originalAnalysis, reconstructedAnalysis) * 100)}%
+
+    Overall perceptual accuracy: ${Math.round(similarity * 100)}%`);
+    }
+
+    function calculatePerceptualSimilarity(original, reconstructed) {
+        // Weight different perceptual factors
+        const shapeWeight = 0.4;
+        const colorWeight = 0.3;
+        const spatialWeight = 0.2;
+        const complexityWeight = 0.1;
+        
+        const shapeSim = calculateShapeSimilarity(original, reconstructed);
+        const colorSim = calculateColorSimilarity(original, reconstructed);
+        const spatialSim = calculateSpatialSimilarity(original, reconstructed);
+        const complexitySim = 1 - Math.abs(original.shapeComplexity - reconstructed.shapeComplexity) / Math.max(original.shapeComplexity, reconstructed.shapeComplexity, 1);
+        
+        return (shapeSim * shapeWeight + colorSim * colorWeight + spatialSim * spatialWeight + complexitySim * complexityWeight);
+    }
+
+    // Initialize
+    drawCtx.fillStyle = 'white';
+    drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+    reconCtx.fillStyle = '#f0f0f0';
+    reconCtx.fillRect(0, 0, reconCanvas.width, reconCanvas.height);
+    </script>
+</body>
+</html>
