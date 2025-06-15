@@ -39,16 +39,18 @@ To build a perceptual encoding and decoding framework that transforms images and
 
 ---
 
-## 📁 Repo Structure (Proposed)
+## 📁 Repo Structure
 
 ```
 /docs/
+  technical/
+    symbolic_compression_technical.md
   symbolic_compression_architecture.md
 
 /src/
   encoder/
-  decoder/
-  utils/
+  decoder/ (proposed)
+  utils/ (proposed)
 
 /examples/
   html/
