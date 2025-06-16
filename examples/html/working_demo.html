@@ -50,7 +50,7 @@
         }       
     </style>
 </head>
-<body>
+<body onload="init()">
     <h1>Perceptual Alchemy: Encoder/Decoder Test</h1>
     
     <div class="panel">
@@ -125,21 +125,6 @@
             } catch (err) {
               console.error('[smoke-test] FAILED:', err);
             }
-          }
-        })();
-        </script>
-    <script>
-        (async () => {
-          const canvas = document.getElementById('inputCanvas');
-          const ctx = canvas.getContext('2d');
-          // 1-pixel black for smoke test
-          ctx.fillStyle = '#000'; ctx.fillRect(0,0,1,1);
-          const smoke = ctx.getImageData(0,0,canvas.width,canvas.height);
-          try {
-            const res = perceptualSystem.encode(smoke);
-            console.log('[smoke-test] code:', res.code);
-          } catch(e) {
-            console.error('[smoke-test] FAILED', e);
           }
         })();
         </script>
