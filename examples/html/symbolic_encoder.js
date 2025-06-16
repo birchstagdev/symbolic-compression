@@ -7,7 +7,7 @@
 
 class PerceptualAlchemyEncoder {
     constructor(options = {}) {
-        this.mode = options.mode || 'balanced';
+        this.mode = options.mode || 'balanced'; // mobile | balanced | rich
         this.culture = options.culture || 'universal';
         this.emotionalContext = options.emotionalContext || null;
         
@@ -20,9 +20,9 @@ class PerceptualAlchemyEncoder {
         // Emotional trajectory buffer
         this.emotionalBuffer = [];
         
-        // FIXED: Adjusted thresholds for better object detection
-        this.EDGE_THRESHOLD = this.mode === 'mobile' ? 50 : 30;  // Lowered from 100/64
-        this.SAMPLE_RATE = 1;      // Reduced from 8/4
+        // Perceptual constants
+        this.EDGE_THRESHOLD = this.mode === 'mobile' ? 100 : 64;
+        this.SAMPLE_RATE = this.mode === 'mobile' ? 8 : 4;
         
         // Symbol allocation budgets
         this.budgets = {
@@ -34,7 +34,6 @@ class PerceptualAlchemyEncoder {
         // Debug mode for symbol visualization
         this.debug = options.debug || false;
         this.symbolMap = new Map();
-    
     }
     
     // === PUBLIC API =========================================================
@@ -46,8 +45,6 @@ class PerceptualAlchemyEncoder {
      * @returns {Object} { code, analysis, confidence, narrative, debug }
      */
     encode(imageData, context = {}) {
-        this.imageWidth  = imageData.width;
-        this.imageHeight = imageData.height;
         const startTime = performance.now();
         
         // Validate input
@@ -88,21 +85,6 @@ class PerceptualAlchemyEncoder {
             confidence,
             narrative: narrativeHint
         };
-
-       
-        console.group("Full Encoder Output");
-        console.log("Encoded result object:", result);
-        if (result && typeof result === "object") {
-            Object.entries(result).forEach(([key, value]) => {
-                console.log(`[result.${key}]`, value);
-                if (value && typeof value === "object" && !Array.isArray(value)) {
-                    Object.entries(value).forEach(([k, v]) => {
-                        console.log(`   [result.${key}.${k}]`, v);
-                    });
-                }
-            });
-        }
-        console.groupEnd();
         
         // Add debug information if enabled
         if (this.debug) {
@@ -250,7 +232,7 @@ class PerceptualAlchemyEncoder {
             steps++;
             
         } while ((x !== startX || y !== startY) && steps < maxSteps);
-
+        
         // Calculate final shape properties
         if (shape.points.length > 0) {
             shape.area = shape.points.length;
@@ -266,27 +248,30 @@ class PerceptualAlchemyEncoder {
     }
     
     extractShapes(edges, width, height) {
-        // Accept either { map: Float32Array } or bare Float32Array
-        const edgeMap = edges.map || edges;
-        if (!edgeMap) return [];
-    
-        const shapes   = [];
-        const visited  = new Uint8Array(width * height);
-    
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
+        const shapes = [];
+        const visited = new Uint8Array(width * height);
+        
+        for (let y = 0; y < height; y += this.SAMPLE_RATE * 2) {
+            for (let x = 0; x < width; x += this.SAMPLE_RATE * 2) {
                 const idx = y * width + x;
-                if (edgeMap[idx] > this.EDGE_THRESHOLD && !visited[idx]) {
-                    const shape = this.marchingSquares(edgeMap, visited, x, y, width, height);
-                    if (shape && shape.points && shape.points.length) {
+                
+                if (edges.map[idx] > this.EDGE_THRESHOLD && !visited[idx]) {
+                    const shape = this.marchingSquares(edges.map, visited, x, y, width, height);
+                    
+                    if (shape.area > 20) {
+                        shape.type = this.classifyShape(shape);
+                        shape.symbolWeight = this.calculateSymbolWeight(shape);
                         shapes.push(shape);
                     }
                 }
             }
         }
+        
+        // Sort by perceptual importance
+        shapes.sort((a, b) => b.symbolWeight - a.symbolWeight);
+        
         return shapes;
     }
-    
     
     /**
      * Proper CIEDE2000 color difference implementation
@@ -497,12 +482,11 @@ class PerceptualAlchemyEncoder {
     analyzeColors(data, width, height) {
         const samples = [];
         const step = this.SAMPLE_RATE * 4;
-
+        
+        // Adaptive color sampling
         for (let y = 0; y < height; y += step) {
             for (let x = 0; x < width; x += step) {
                 const idx = (y * width + x) * 4;
-                // Only count opaque pixels
-                if (data[idx+3] === 0) continue;
                 samples.push({
                     r: data[idx],
                     g: data[idx + 1],
@@ -510,10 +494,6 @@ class PerceptualAlchemyEncoder {
                     x, y
                 });
             }
-        }
-        if (samples.length === 0) {
-            // All transparent—inject a "safe" dummy color
-            samples.push({r: 255, g: 255, b: 255, x:0, y:0});
         }
         
         // Cluster colors using proper CIEDE2000
@@ -705,32 +685,20 @@ class PerceptualAlchemyEncoder {
     
     encodeToSymbols(perception, emotion) {
         const budget = this.budgets[this.mode];
-
+        let code = '';
+        
         // 1. SCENE CONTEXT (adaptive 3-4 chars)
-        const sceneCode = this.encodeSceneContext(perception, emotion, budget.scene);
-
+        code += this.encodeSceneContext(perception, emotion, budget.scene);
+        
         // 2. OBJECTS (entropy-optimized allocation)
         const objectCode = this.encodeObjectsWithEntropy(perception.shapes, budget.objects);
-
+        code += objectCode;
+        
         // 3. SPATIAL (with depth layer)
-        const spatialCode = this.encodeSpatialWithDepth(perception.spatial, budget.spatial);
-
+        code += this.encodeSpatialWithDepth(perception.spatial, budget.spatial);
+        
         // 4. EMOTION (trajectory encoding)
-        const emotionCode = this.encodeEmotionalTrajectory(emotion, budget.emotion);
-
-        // Strict segment join
-        let code = sceneCode + objectCode + spatialCode + emotionCode;
-
-        // --- Defensive Segment Validation ---
-        // Enforce objectCode is ONLY a-z
-        const objectsOnly = objectCode.replace(/0/g, ''); // '0' is padding
-        if (/[^a-z]/.test(objectsOnly)) {
-            throw new Error(`[ENCODER] Invalid symbol(s) in object segment: '${objectCode}'. Only 'a'-'z' allowed.`);
-        }
-        // Spatial can have WXYZ01234!@#$%
-        if (/[^WXYZ01234!@#$%A-Z]/.test(spatialCode)) {
-            throw new Error(`[ENCODER] Invalid symbol(s) in spatial segment: '${spatialCode}'.`);
-        }
+        code += this.encodeEmotionalTrajectory(emotion, budget.emotion);
         
         return code;
     }
@@ -769,9 +737,6 @@ class PerceptualAlchemyEncoder {
     }
     
     encodeObjectsWithEntropy(shapes, budget) {
-        if (!Array.isArray(shapes) || shapes.length === 0) {
-            return ''.padEnd(budget, '0');
-        }
         const encodedObjects = [];
         let currentLength = 0;
         
@@ -807,23 +772,24 @@ class PerceptualAlchemyEncoder {
      * Encode position with spatial context
      */
     encodePosition(centroid, boundingBox, length = 1) {
-        // normalise to 0-1
-        const nx = centroid.x / this.imageWidth;
-        const ny = centroid.y / this.imageHeight;
-    
+        // Normalize position to 0-1
+        const nx = centroid.x / 280; // Assuming standard width
+        const ny = centroid.y / 200; // Assuming standard height
+        
         if (length === 1) {
-            // coarse 3×3 grid
+            // Single character position encoding (3x3 grid)
             const gridX = Math.floor(nx * 3);
             const gridY = Math.floor(ny * 3);
-            const gridPos = gridY * 3 + gridX;          // 0 … 8
-            const positionChars = 'abcdefghi';           // letters, not digits
-            return positionChars[Math.max(0, Math.min(8, gridPos))];
+            const gridPos = gridY * 3 + gridX;
+            
+            const positionChars = '123456789';
+            return positionChars[Math.min(8, Math.max(0, gridPos))];
+        } else {
+            // Multi-character for higher precision
+            const posX = this.quantizeToSymbol(nx);
+            const posY = this.quantizeToSymbol(ny);
+            return posX + posY;
         }
-    
-        // finer precision: two quantised symbols (still letters)
-        const posX = this.quantizeToSymbol(nx);         // e.g. 'm'
-        const posY = this.quantizeToSymbol(ny);         // e.g. 'q'
-        return posX + posY;
     }
     
     encodeSpatialWithDepth(spatial, budget) {
@@ -855,7 +821,6 @@ class PerceptualAlchemyEncoder {
             }
         }
         
-        if (code.length > budget) code = code.slice(0, budget);
         return code.padEnd(budget, 'X');
     }
     
@@ -928,16 +893,15 @@ class PerceptualAlchemyEncoder {
         // Generate parity symbols
         const parity = this.generateReedSolomonParity(code, paritySymbols);
         
-        return code + parity.slice(0,1);
+        return code + parity;
     }
     
     generateReedSolomonParity(data, numParity) {
-        // Match the validator's checksum algorithm
-        let sum = 0;
-        for (let i = 0; i < data.length; i++) {
-            sum += data.charCodeAt(i) * (i + 1);
-        }
-        return String.fromCharCode(65 + (sum % 26));
+        // Simplified but functional checksum for now
+        const checksum = data.split('').reduce((sum, char, i) => 
+            (sum + char.charCodeAt(0) * (i + 1)) % 256, 0);
+        
+        return String.fromCharCode(65 + (checksum % 26));
     }
     
     // === NARRATIVE GENERATION ===============================================
@@ -1184,11 +1148,8 @@ class PerceptualAlchemyEncoder {
         return grammars[culture] || grammars.universal;
     }
     
-    getLuminance(data, pixelIndex) {
-        // Ensure we're accessing the correct position in the flat array
-        const i = pixelIndex * 4;
-        if (i + 2 >= data.length) return 0;
-        
+    getLuminance(data, idx) {
+        const i = idx * 4;
         return 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
     }
     
@@ -1734,30 +1695,20 @@ class DynamicVocabulary {
         return vocab[Math.abs(hash) % vocab.length];
     }
     
-    getSymbolWithLength(category, value, length = 1) {
-        // base symbol for this category
+    getSymbolWithLength(category, value, length) {
+        // Adaptive length encoding
         const base = this.getSymbol(category, value);
-    
-        // ── Objects MUST stay a-z only ────────────────────────────────
-        if (category === 'object') {
-            const vocab = this.vocabularies.object;   // ["a"-"z"]
-            let code = base;
-            // deterministic secondary letters – never +,=,/ or digits
-            for (let i = 1; i < length; i++) {
-                const idx = (base.charCodeAt(0) - 97 + i) % vocab.length;
-                code += vocab[idx];
-            }
-            return code.slice(0, length);
-        }
-    
-        // ── Other categories keep their original modifiers ────────────
+        
+        if (length === 1) return base;
+        
+        // Add modifier symbols for longer codes
         let code = base;
         for (let i = 1; i < length; i++) {
             code += this.getSymbol('modifier', value + i);
         }
-        return code.slice(0, length);
+        
+        return code.substring(0, length);
     }
-    
 }
 
 // === EXPORT =================================================================
