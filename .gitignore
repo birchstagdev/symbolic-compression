@@ -48,3 +48,5 @@ tmp/
 *.pdf
 *.md.bak
 exported/
+
+symbolic_openrouter_test.js
