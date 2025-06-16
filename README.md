@@ -1,41 +1,46 @@
+
 # 🧠 Symbolic Encoding & Decoding System
 
-This project implements a symbolic, emotion-aware compression and reconstruction system for visual scenes. Rather than storing or recovering pixel data, it captures **how humans perceive and remember** through structure, mood, saliency, and symbolic presence.
+This project implements a symbolic, emotion-aware compression and reconstruction system for visual scenes. Rather than storing or recovering pixel data, it captures how humans perceive and remember — through structure, mood, saliency, and symbolic presence.
 
 ---
 
 ## 🔍 Project Goal
 
-To build a perceptual encoding and decoding framework that transforms images and video frames into **compact memory-like codes**, and reconstructs them into **symbolic, emotional, and spatial representations** for human-first, ai-ready applications.
+To build a perceptual encoding and decoding framework that transforms images and video frames into compact, memory-like codes and reconstructs them into symbolic, emotional, and spatial representations for human-first, ai-ready applications.
 
 ---
 
 ## 💡 Key Features
 
-- **Perceptual Encoder**
+- **Perceptual Encoder (Complete)**
   - Converts input images into 16–32 character symbolic codes
-  - Analyzes edge density, color variance, shape recognition, saliency, spatial layout
-  - Produces structured metadata alongside the main perceptual string
+  - Adaptive sampling based on edge density, color variance, shape recognition, and spatial entropy
+  - Uses CIEDE2000 for color perception and radial spatial analysis for cultural grammar
+  - Encodes emotional mood and temporal context
+  - Exports optional narrative hint metadata and symbol debug maps
+  - Supports Reed-Solomon checksum for streaming integrity
 
-- **Symbolic Decoder**
-  - Interprets perceptual codes into scene descriptions, memory tokens, or scene graphs
-  - Supports ambiguous, mood-driven reconstruction (not visual fidelity)
-  - Version-aware and configurable for cultural, emotional, or character-specific biases
+- **Symbolic Decoder (Prototype Complete)**
+  - Reconstructs mood, scene type, objects, layout, and narrative hints from encoded strings
+  - Culture-aware lens remaps symbols based on mythological/archetypal structure
+  - Includes dream logic layer, memory blending, and emotional biasing
+  - Supports NPC modes for simulated misperception and memory-driven behavior
 
-- **NPC Integration (Optional)**
-  - Modified decoders can serve as NPC perception systems
-  - NPCs behave based on what they symbolically "see", not omniscient data
-  - Enables large-scale, memory-consistent simulated worlds
+- **NPC Integration**
+  - Allows game agents to perceive scenes symbolically, not omnisciently
+  - Enables long-term memory, mood evolution, and individualized worldviews
+  - Designed for low-resource environments or planetary-scale simulations
 
 ---
 
 ## 🧠 Use Cases
 
-- Symbolic world streaming in low-fidelity games  
+- Symbolic world streaming in low-fidelity or browser-first games  
 - Scene reconstruction via memory instead of pixels  
-- Mood-based storytelling and dream-like playback  
-- Human-readable perceptual logs  
-- Lightweight vision modules for AI agents  
+- Mood-based storytelling and dreamlike playback  
+- Emotionally tagged perceptual logging  
+- Symbolic, low-bandwidth AI vision for persistent NPC behavior
 
 ---
 
@@ -45,17 +50,15 @@ To build a perceptual encoding and decoding framework that transforms images and
 /docs/
   technical/
     symbolic_compression_technical.md
+    updated_symbolic_compression_spec.md
   symbolic_compression_architecture.md
 
 /src/
   encoder/
-  decoder/ (proposed)
-  utils/ (proposed)
-
-/examples/
-  html/
-  sample-scenes/
-  test-decoding/
+    perceptual-encoder-complete.js
+  decoder/
+    perceptual-decoder-v3.js
+  utils/
 
 README.md
 LICENSE.md
@@ -65,19 +68,23 @@ LICENSE.md
 
 ## 📜 Philosophy
 
-This is a **human-first, ai-ready perceptual system**.  
+This is a human-first, ai-ready perceptual system.  
 It does not aim for realism or photometric accuracy.  
-It aims to **preserve what mattered** and reconstruct **what should be remembered**.
+It aims to preserve what mattered and reconstruct what should be remembered.  
+
+> "Perception is no longer pixels — it's meaning."
 
 ---
 
 ## 🧪 Status
 
-- ✅ Perceptual analysis architecture defined  
-- ✅ Decoder theory scoped  
-- ☐ Decoder system in development  
-- ☐ NPC integration planned  
-- ☐ Symbolic rendering pending  
+- ✅ Perceptual encoder complete  
+- ✅ Symbolic decoder prototype implemented  
+- ✅ CIEDE2000 and spatial logic active  
+- ✅ Cultural grammar and narrative layer added  
+- ☐ Decoder symbol visualizer (planned)  
+- ☐ Full NPC integration module (planned)  
+- ☐ Rendering engine for symbolic views (pending)
 
 ---
 
@@ -89,12 +96,14 @@ MIT License (see `LICENSE` file).
 
 ## 🗺️ Roadmap
 
-- [ ] Implement and benchmark decoder
-- [ ] Export symbolic visual logs for real scenes
-- [ ] Prototype NPC perceptual integration in *When The Sun Dies*
-- [ ] Build visual interpreter: symbolic → textual → graphical
+- [ ] Finalize decoder components (depth layers, visualizer, echoes)
+- [ ] Validate encoder/decoder roundtrip consistency
+- [ ] Export visual-symbolic logs for scenes
+- [ ] Integrate NPC perceptual engine in *When The Sun Dies*
+- [ ] Build symbolic rendering layer (textual → graphical reconstruction)
 
-It’s kinda wild, huh? A dude in a shed, high as the clouds, watering basil like it’s a thesis, shaping reality into code while surviving on Mr. Noodles...
+Sometimes, you don’t need a team.  
+You just need obsession, some code, and a world worth remembering.
 
-But hey, paradigm shifts rarely bloom in labs. They sprout in weird places. Like a shed.
+And maybe a shed.
 
