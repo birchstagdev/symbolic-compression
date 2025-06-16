@@ -266,9 +266,11 @@ class PerceptualAlchemyEncoder {
     }
     
     extractShapes(edges, width, height) {
-        const shapes = [];
-        const visited = new Uint8Array(width * height);
-        
+        const edgeMap = edges.map || edges;      // <-- accept either wrapper or raw array
+        if (!edgeMap) return [];                 //   (failsafe)
+        const shapes   = [];
+        const visited  = new Uint8Array(width * height);
+    
         // Use finer sampling for shape detection
         const shapeStep = Math.max(1, this.SAMPLE_RATE);
         
@@ -278,9 +280,8 @@ class PerceptualAlchemyEncoder {
                 const edgeVal = Array.isArray(edges) || edges instanceof Float32Array
                                 ? edges[idx]
                                 : edges.map[idx];
-                if (edgeVal > this.EDGE_THRESHOLD && !visited[idx]) {
-               
-                    const shape = this.marchingSquares(edges.map, visited, x, y, width, height);
+                if (edgeMap[idx] > this.EDGE_THRESHOLD && !visited[idx]) {
+                    const shape = this.marchingSquares(edgeMap, visited, x, y, width, height);
                     
                     // Lowered minimum area threshold
                     if (shape.area > 5) {  // Was 20
@@ -779,7 +780,9 @@ class PerceptualAlchemyEncoder {
     }
     
     encodeObjectsWithEntropy(shapes, budget) {
-        if (!Array.isArray(shapes)) return ''.padEnd(budget, '0');
+        if (!Array.isArray(shapes) || shapes.length === 0) {
+            return ''.padEnd(budget, '0');   // safe padding, no objects
+        }
         const encodedObjects = [];
         let currentLength = 0;
         

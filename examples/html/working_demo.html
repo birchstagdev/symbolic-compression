@@ -47,7 +47,7 @@
             background: #111; 
             padding: 10px;
             font-size: 0.9em;
-        }
+        }       
     </style>
 </head>
 <body>
@@ -301,7 +301,8 @@
         }
 
         window.onload = init;
-
+        const smoke = ctx.getImageData(0,0,1,1);   // 1-px black
+        console.log('smoke-test →', perceptualSystem.encode(smoke).code);
     </script>
 </body>
 </html>
