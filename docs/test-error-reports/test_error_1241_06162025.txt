@@ -1,0 +1,357 @@
+Encoding result:
+	Visual Code: ELVγefgaefgaefgaW4$AXXOM6MJ
+	[result.narrative.scene] A complex scene of undefineds filling gold-tinted high space.
+	[result.narrative.emotion] The mood is balanced and neutral.
+	[result.narrative.poetic] Energy pulses in undefined
+	[result.narrative.summary] A complex scene of undefineds filling gold-tinted high space. The mood is balanced and neutral.
+
+Notice how it says complex scene of undefined, so it is seeing the image. But maybe it's not getting a certain variable from the image.
+
+Complete encode:
+
+symbolic_encoder.js:93 Full Encoder Output
+symbolic_encoder.js:94 Encoded result object: {code: 'ELVγefgaefgaefgaW4$AXXOM6MJ', analysis: {…}, confidence: 0.6075133091966284, narrative: {…}}
+symbolic_encoder.js:97 [result.code] ELVγefgaefgaefgaW4$AXXOM6MJ
+symbolic_encoder.js:97 [result.analysis] {perception: {…}, emotion: {…}, cultural: {…}, processingTime: 138.80000001192093}
+symbolic_encoder.js:100    [result.analysis.perception] {edges: {…}, shapes: Array(1887), colors: {…}, spatial: {…}, saliency: 0.3603894959686047}
+symbolic_encoder.js:100    [result.analysis.emotion] {current: {…}, trajectory: 'stable', resonance: 0.4973993976154449}
+symbolic_encoder.js:100    [result.analysis.cultural] {edges: {…}, shapes: Array(1887), colors: {…}, spatial: {…}, saliency: 0.3603894959686047}
+symbolic_encoder.js:100    [result.analysis.processingTime] 138.80000001192093
+symbolic_encoder.js:97 [result.confidence] 0.6075133091966284
+symbolic_encoder.js:97 [result.narrative] {scene: 'A complex scene of undefineds filling gold-tinted high space.', emotion: 'The mood is balanced and neutral.', poetic: 'Energy pulses in undefined', summary: 'A complex scene of undefineds filling gold-tinted high space. The mood is balanced and neutral.'}
+symbolic_encoder.js:100    [result.narrative.scene] A complex scene of undefineds filling gold-tinted high space.
+symbolic_encoder.js:100    [result.narrative.emotion] The mood is balanced and neutral.
+symbolic_encoder.js:100    [result.narrative.poetic] Energy pulses in undefined
+symbolic_encoder.js:100    [result.narrative.summary] A complex scene of undefineds filling gold-tinted high space. The mood is balanced and neutral.
+
+
+Encode Method:
+    encode(imageData, context = {}) {
+        this.imageWidth  = imageData.width;
+        this.imageHeight = imageData.height;
+        const startTime = performance.now();
+        
+        // Validate input
+        this.validateInput(imageData);
+        
+        // Clear debug map for new encoding
+        if (this.debug) this.symbolMap.clear();
+        
+        // 1. PERCEPTUAL ANALYSIS
+        const perception = this.analyzePerception(imageData);
+        
+        // 2. EMOTIONAL ANALYSIS
+        const emotion = this.analyzeEmotion(perception, context);
+        
+        // 3. CULTURAL TRANSFORMATION
+        const culturalPerception = this.applyCulturalLens(perception, emotion);
+        
+        // 4. SYMBOLIC ENCODING
+        const code = this.encodeToSymbols(culturalPerception, emotion);
+        
+        // 5. ERROR CORRECTION (Reed-Solomon implementation)
+        const finalCode = this.addReedSolomonErrorCorrection(code);
+        
+        // 6. CONFIDENCE SCORING
+        const confidence = this.calculateConfidence(perception, emotion);
+        
+        // 7. NARRATIVE HINT GENERATION
+        const narrativeHint = this.generateNarrativeHint(culturalPerception, emotion);
+        
+        const result = {
+            code: finalCode,
+            analysis: {
+                perception,
+                emotion,
+                cultural: culturalPerception,
+                processingTime: performance.now() - startTime
+            },
+            confidence,
+            narrative: narrativeHint
+        };
+
+       
+        console.group("Full Encoder Output");
+        console.log("Encoded result object:", result);
+        if (result && typeof result === "object") {
+            Object.entries(result).forEach(([key, value]) => {
+                console.log(`[result.${key}]`, value);
+                if (value && typeof value === "object" && !Array.isArray(value)) {
+                    Object.entries(value).forEach(([k, v]) => {
+                        console.log(`   [result.${key}.${k}]`, v);
+                    });
+                }
+            });
+        }
+        console.groupEnd();
+        
+        // Add debug information if enabled
+        if (this.debug) {
+            result.debug = {
+                symbolMap: Array.from(this.symbolMap.entries()),
+                codeBreakdown: this.visualizeSymbolStream(finalCode)
+            };
+        }
+        
+        return result;
+    }
+
+Statement:
+	if (result && typeof result === "object") {
+            Object.entries(result).forEach(([key, value]) => {
+                console.log(`[result.${key}]`, value);
+                if (value && typeof value === "object" && !Array.isArray(value)) {
+                    Object.entries(value).forEach(([k, v]) => {
+                        console.log(`   [result.${key}.${k}]`, v);
+                    });
+                }
+            });
+        }
+
+symbolic_encoder.js:97 [result.narrative] {scene: 'A complex scene of undefineds filling gold-tinted high space.', emotion: 'The mood is balanced and neutral.', poetic: 'Energy pulses in undefined', summary: 'A complex scene of undefineds filling gold-tinted high space. The mood is balanced and neutral.'}
+Decoding result:
+An image with no metadata was uploaded, clearly visible even LLM can see. Regardless of metadata, which is how the image was exported, then uploaded, we should still have a result.
+[result.confidence] 0.6075133091966284
+[result.analysis.processingTime] 138.80000001192093
+[result.analysis.cultural] {edges: {…}, shapes: Array(1887), colors: {…}, spatial: {…}, saliency: 0.3603894959686047}
+[result.analysis.emotion] {current: {…}, trajectory: 'stable', resonance: 0.4973993976154449}
+[result.analysis.perception] {edges: {…}, shapes: Array(1887), colors: {…}, spatial: {…}, saliency: 0.3603894959686047}
+[result.analysis] {perception: {…}, emotion: {…}, cultural: {…}, processingTime: 138.80000001192093}
+symbolic_encoder.js:97 [result.code] ELVγefgaefgaefgaW4$AXXOM6MJ
+symbolic_encoder.js:94 Encoded result object: {code: 'ELVγefgaefgaefgaW4$AXXOM6MJ', analysis: {…}, confidence: 0.6075133091966284, narrative: {…}}
+   [result.narrative.variations] []
+working_demo.html:198    [result.narrative.archetypal] unknown
+working_demo.html:195 [result.memory] {echoes: Array(0), resonance: 0, decay: 1}
+working_demo.html:198    [result.memory.echoes] []
+working_demo.html:198    [result.memory.resonance] 0
+working_demo.html:198    [result.memory.decay] 1
+working_demo.html:195 [result.rendering] {hints: {…}, focus: Array(1), palettes: {…}}
+working_demo.html:198    [result.rendering.hints] {}
+working_demo.html:198    [result.rendering.focus] [{…}]
+working_demo.html:198    [result.rendering.palettes] {mood: {…}, paint: {…}}
+working_demo.html:195 [result.metrics] {bitsPerSymbol: 0, totalBits: 0, length: 27}
+working_demo.html:198    [result.metrics.bitsPerSymbol] 0
+working_demo.html:198    [result.metrics.totalBits] 0
+working_demo.html:198    [result.metrics.length] 27
+working_demo.html:195 [result.metadata] {confidence: 0, isReliable: false, mode: 'stable', culture: 'universal', processingTime: 0.2999999523162842, …}
+working_demo.html:198    [result.metadata.confidence] 0
+working_demo.html:198    [result.metadata.isReliable] false
+working_demo.html:198    [result.metadata.mode] stable
+working_demo.html:198    [result.metadata.culture] universal
+working_demo.html:198    [result.metadata.processingTime] 0.2999999523162842
+working_demo.html:198    [result.metadata.error] Invalid character set
+symbolic_encoder.js:93 Full Encoder Output
+
+Code Trace:
+Startpoint: working_demo.html:86:36
+<button onclick="decode()">Decode</button>
+
+Next: working_demo.html:188:49
+const result = perceptualSystem.decode(code);
+
+Next: perceptual_system.js:86:33
+throw new Error(errorDetails);
+Full:
+    decode(code, context = {}) {
+        try {
+            if (!this.validator.validate(code)) {
+                console.warn(`Invalid code format: ${code}`);
+                return this.decoder.generateFallbackExperience(code);
+            }
+            
+            // Pass memory buffer to decoder for resonance
+            this.decoder.memoryBuffer = this.memoryBuffer;
+            
+            return this.decoder.decode(code, context);
+        } catch (error) {
+            console.error('Decoding failed:', error);
+            return this.decoder.generateFallbackExperience(code);
+        }
+    }
+
+Next: symbolic_decoder.js:171:23
+throw new Error(errorDetails);
+Full:
+     if (!validated.valid) {
+         errorDetails = validated.error || 'Invalid code';
+         throw new Error(errorDetails);
+     }
+
+Endpoint: symbolic_decoder.js:264
+console.error('[Decoder] Critical error:', error, {
+Full:
+	decode(code, context = {}) {
+        const startTime = performance.now();
+    
+        let validated, segments, scene, objects, spatial, emotion, memories, interpreted, narrative, experience, confidence, entropy, mood, paint, errorDetails;
+     try {
+            // 1. VALIDATION & ERROR CORRECTION
+            validated = this.validateAndCorrect(code);
+            if (!validated.valid) {
+                errorDetails = validated.error || 'Invalid code';
+                throw new Error(errorDetails);
+            }
+    
+            // 2. SYMBOL SEGMENTATION
+            segments = this.segmentCode(validated.code);
+    
+            // 3. CORE RECONSTRUCTION
+            scene   = this.reconstructScene(segments.scene);
+            objects = this.reconstructObjects(segments.objects);
+            spatial = this.reconstructSpatial(segments.spatial);
+            emotion = this.reconstructEmotion(segments.emotion);
+    
+            // 4. MEMORY INTEGRATION
+            memories = this.memoryResonance.findEchoes(validated.code, emotion);
+    
+            // 5. CULTURAL INTERPRETATION
+            interpreted = this.applyInterpretation(scene, objects, spatial, emotion);
+    
+            // 6. NARRATIVE GENERATION
+            narrative = this.narrativeEngine.generate(interpreted, memories);
+    
+            // 7. DREAM LOGIC APPLICATION
+            experience = this.applyDreamLogic(interpreted, memories);
+    
+            // 8. CONFIDENCE CALCULATION
+            confidence = this.calculateReconstructionConfidence(segments);
+    
+            // 9. ENTROPY DIAGNOSTICS
+            entropy = this.estimateSymbolEntropy(validated.code);
+    
+            // 10. OPTIONAL PALETTE CALCS
+            mood  = this.extractMoodPalette ? this.extractMoodPalette(experience) : {};
+            paint = this.extractColorPalette ? this.extractColorPalette(experience) : {};
+    
+            // Defensive defaults for critical fields:
+            if (!narrative || typeof narrative !== 'object') {
+                narrative = {
+                    primary: "A memory that cannot be recalled.",
+                    poetic: "Like sunlight lost behind clouds, the moment slips away, undefined and weightless.",
+                    variations: [],
+                    archetypal: 'unknown'
+                };
+                errorDetails = "Narrative missing or malformed (autofilled).";
+            }
+    
+            // Defensive for experience:
+            if (!experience || typeof experience !== 'object') {
+                experience = {
+                    scene, objects, spatial, emotional: emotion, temporal: {},
+                    error: "Experience pipeline failed; autofilled structure."
+                };
+            }
+    
+            // Defensive for memory:
+            if (!memories) memories = [];
+    
+            // Defensive for entropy:
+            if (!entropy) {
+                entropy = { bitsPerSymbol: 0, totalBits: 0, length: validated.code ? validated.code.length : code.length };
+            }
+    
+            return {
+                experience: {
+                    scene: experience.scene,
+                    objects: experience.objects,
+                    spatial: experience.spatial,
+                    emotional: experience.emotional,
+                    temporal: experience.temporal
+                },
+                narrative,
+                memory: {
+                    echoes: memories,
+                    resonance: this.calculateMemoryResonance ? this.calculateMemoryResonance(memories) : 0,
+                    decay: this.estimateMemoryDecay ? this.estimateMemoryDecay(context.timestamp) : 1.0
+                },
+                rendering: {
+                    hints: this.generateRenderingHints ? this.generateRenderingHints(experience) : {},
+                    focus: this.calculateFocalPoints ? this.calculateFocalPoints(experience) : [{ x: 0.5, y: 0.5, strength: 0 }],
+                    palettes: { mood, paint }
+                },
+                metrics: entropy,
+                metadata: {
+                    confidence,
+                    isReliable: typeof confidence === 'number' ? confidence >= (this.confidenceThreshold || 0.6) : false,
+                    mode: this.mode,
+                    culture: this.culture,
+                    processingTime: performance.now() - startTime,
+                    error: errorDetails
+                }
+            };
+    
+        } catch (error) {
+            // Fallback error path: always produce a fully-structured result
+            console.error('[Decoder] Critical error:', error, {
+                validated, segments, scene, objects, spatial, emotion, memories, interpreted, narrative, experience, confidence, entropy, mood, paint
+            });
+            // Fill as much as possible
+            return {
+                experience: {
+                    scene: scene || null,
+                    objects: objects || [],
+                    spatial: spatial || null,
+                    emotional: emotion || null,
+                    temporal: {}
+                },
+                narrative: {
+                    primary: "A memory that cannot be recalled.",
+                    poetic: "Like sunlight lost behind clouds, the moment slips away, undefined and weightless.",
+                    variations: [],
+                    archetypal: 'unknown'
+                },
+                memory: {
+                    echoes: memories || [],
+                    resonance: 0,
+                    decay: 1.0
+                },
+                rendering: {
+                    hints: {},
+                    focus: [{ x: 0.5, y: 0.5, strength: 0 }],
+                    palettes: { mood: {}, paint: {} }
+                },
+                metrics: entropy || { bitsPerSymbol: 0, totalBits: 0, length: code.length },
+                metadata: {
+                    confidence: 0,
+                    isReliable: false,
+                    mode: this.mode,
+                    culture: this.culture,
+                    processingTime: performance.now() - startTime,
+                    error: error.message || "Decoding pipeline critical error"
+                }
+            };
+        }
+
+Full Decoder Output:
+working_demo.html:191 Full Decoder Output
+working_demo.html:192 Decoded result object: {experience: {…}, narrative: {…}, memory: {…}, rendering: {…}, metrics: {…}, …}
+working_demo.html:195 [result.experience] {scene: null, objects: Array(0), spatial: null, emotional: null, temporal: {…}}
+working_demo.html:198    [result.experience.scene] null
+working_demo.html:198    [result.experience.objects] []
+working_demo.html:198    [result.experience.spatial] null
+working_demo.html:198    [result.experience.emotional] null
+working_demo.html:198    [result.experience.temporal] {}
+working_demo.html:195 [result.narrative] {primary: 'A memory that cannot be recalled.', poetic: 'Like sunlight lost behind clouds, the moment slips away, undefined and weightless.', variations: Array(0), archetypal: 'unknown'}
+working_demo.html:198    [result.narrative.primary] A memory that cannot be recalled.
+working_demo.html:198    [result.narrative.poetic] Like sunlight lost behind clouds, the moment slips away, undefined and weightless.
+working_demo.html:198    [result.narrative.variations] []
+working_demo.html:198    [result.narrative.archetypal] unknown
+working_demo.html:195 [result.memory] {echoes: Array(0), resonance: 0, decay: 1}
+working_demo.html:198    [result.memory.echoes] []
+working_demo.html:198    [result.memory.resonance] 0
+working_demo.html:198    [result.memory.decay] 1
+working_demo.html:195 [result.rendering] {hints: {…}, focus: Array(1), palettes: {…}}
+working_demo.html:198    [result.rendering.hints] {}
+working_demo.html:198    [result.rendering.focus] [{…}]
+working_demo.html:198    [result.rendering.palettes] {mood: {…}, paint: {…}}
+working_demo.html:195 [result.metrics] {bitsPerSymbol: 0, totalBits: 0, length: 27}
+working_demo.html:198    [result.metrics.bitsPerSymbol] 0
+working_demo.html:198    [result.metrics.totalBits] 0
+working_demo.html:198    [result.metrics.length] 27
+working_demo.html:195 [result.metadata] {confidence: 0, isReliable: false, mode: 'stable', culture: 'universal', processingTime: 0.2999999523162842, …}
+working_demo.html:198    [result.metadata.confidence] 0
+working_demo.html:198    [result.metadata.isReliable] false
+working_demo.html:198    [result.metadata.mode] stable
+working_demo.html:198    [result.metadata.culture] universal
+working_demo.html:198    [result.metadata.processingTime] 0.2999999523162842
+working_demo.html:198    [result.metadata.error] Invalid character set
