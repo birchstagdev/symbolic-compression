@@ -131,16 +131,6 @@
             }
             return {allTransparent, allWhite};
         }
-        
-        const blankCheck = isCanvasBlank(ctx, 320, 240);
-        if (blankCheck.allTransparent) {
-            log("Warning: Image is fully transparent. Try flattening or merging layers before export.");
-            return;
-        }
-        if (blankCheck.allWhite) {
-            log("Warning: Image is all white. Are you sure you loaded the correct image?");
-            // Continue or return, your choice
-        }
 
         function showCanvasPreview() {
             const canvas = document.getElementById('inputCanvas');
@@ -154,6 +144,16 @@
         function encode() {
             try {
                 const imageData = ctx.getImageData(0, 0, 320, 240);
+
+                const blankCheck = isCanvasBlank(ctx, 320, 240);
+                if (blankCheck.allTransparent) {
+                    log("Warning: Image is fully transparent. Try flattening or merging layers before export.");
+                    return;
+                }
+                if (blankCheck.allWhite) {
+                    log("Warning: Image is all white. Are you sure you loaded the correct image?");
+                    // Continue or return, your choice
+                }
                 if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
                     log('Invalid image data');
                     return;
