@@ -46,6 +46,8 @@ class PerceptualAlchemyEncoder {
      * @returns {Object} { code, analysis, confidence, narrative, debug }
      */
     encode(imageData, context = {}) {
+        this.imageWidth  = imageData.width;
+        this.imageHeight = imageData.height;
         const startTime = performance.now();
         
         // Validate input
@@ -273,8 +275,11 @@ class PerceptualAlchemyEncoder {
         for (let y = 0; y < height; y += shapeStep) {
             for (let x = 0; x < width; x += shapeStep) {
                 const idx = y * width + x;
-                
-                if (edges.map[idx] > this.EDGE_THRESHOLD && !visited[idx]) {
+                const edgeVal = Array.isArray(edges) || edges instanceof Float32Array
+                                ? edges[idx]
+                                : edges.map[idx];
+                if (edgeVal > this.EDGE_THRESHOLD && !visited[idx]) {
+               
                     const shape = this.marchingSquares(edges.map, visited, x, y, width, height);
                     
                     // Lowered minimum area threshold
@@ -774,6 +779,7 @@ class PerceptualAlchemyEncoder {
     }
     
     encodeObjectsWithEntropy(shapes, budget) {
+        if (!Array.isArray(shapes)) return ''.padEnd(budget, '0');
         const encodedObjects = [];
         let currentLength = 0;
         
