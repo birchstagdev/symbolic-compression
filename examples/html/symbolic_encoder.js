@@ -86,6 +86,21 @@ class PerceptualAlchemyEncoder {
             confidence,
             narrative: narrativeHint
         };
+
+       
+        console.group("Full Encoder Output");
+        console.log("Encoded result object:", result);
+        if (result && typeof result === "object") {
+            Object.entries(result).forEach(([key, value]) => {
+                console.log(`[result.${key}]`, value);
+                if (value && typeof value === "object" && !Array.isArray(value)) {
+                    Object.entries(value).forEach(([k, v]) => {
+                        console.log(`   [result.${key}.${k}]`, v);
+                    });
+                }
+            });
+        }
+        console.groupEnd();
         
         // Add debug information if enabled
         if (this.debug) {
@@ -233,7 +248,7 @@ class PerceptualAlchemyEncoder {
             steps++;
             
         } while ((x !== startX || y !== startY) && steps < maxSteps);
-        
+
         // Calculate final shape properties
         if (shape.points.length > 0) {
             shape.area = shape.points.length;

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" href="data:image/png;base64,iVBORw0KGgo=">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Perceptual Alchemy Test</title>
@@ -107,7 +108,8 @@
             alert("⚠️ This demo must be run from a local web server or deployed online! File uploads and canvas drawing will not work when opened as a file. Please use Live Server, Python http.server, or deploy to GitHub Pages.");
         }
 
-        const ctx = document.getElementById('inputCanvas').getContext('2d');
+        const ctx = document.getElementById('inputCanvas').getContext('2d', { willReadFrequently: true });
+
        
         function log(msg) {
             const logEl = document.getElementById('log');
@@ -185,6 +187,23 @@
                 
                 perceptualSystem.decoder.mode = document.getElementById('decodeMode').value;
                 const result = perceptualSystem.decode(code);
+
+                // --- DEBUG: Dump all decode variables ---
+                console.group("Full Decoder Output");
+                console.log("Decoded result object:", result);
+                if (result && typeof result === "object") {
+                    Object.entries(result).forEach(([key, value]) => {
+                        console.log(`[result.${key}]`, value);
+                        if (value && typeof value === "object" && !Array.isArray(value)) {
+                            Object.entries(value).forEach(([k, v]) => {
+                                console.log(`   [result.${key}.${k}]`, v);
+                            });
+                        }
+                    });
+                }
+                console.groupEnd();
+                // --- END DEBUG ---
+
                 
                 document.getElementById('narrative').innerHTML = `
                     <strong>Scene:</strong> ${result.narrative.primary}<br>
