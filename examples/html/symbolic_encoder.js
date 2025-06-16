@@ -266,38 +266,27 @@ class PerceptualAlchemyEncoder {
     }
     
     extractShapes(edges, width, height) {
-        const edgeMap = edges.map || edges;      // <-- accept either wrapper or raw array
-        if (!edgeMap) return [];                 //   (failsafe)
+        // Accept either { map: Float32Array } or bare Float32Array
+        const edgeMap = edges.map || edges;
+        if (!edgeMap) return [];
+    
         const shapes   = [];
         const visited  = new Uint8Array(width * height);
     
-        // Use finer sampling for shape detection
-        const shapeStep = Math.max(1, this.SAMPLE_RATE);
-        
-        for (let y = 0; y < height; y += shapeStep) {
-            for (let x = 0; x < width; x += shapeStep) {
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
                 const idx = y * width + x;
-                const edgeVal = Array.isArray(edges) || edges instanceof Float32Array
-                                ? edges[idx]
-                                : edges.map[idx];
                 if (edgeMap[idx] > this.EDGE_THRESHOLD && !visited[idx]) {
                     const shape = this.marchingSquares(edgeMap, visited, x, y, width, height);
-                    
-                    // Lowered minimum area threshold
-                    if (shape.area > 5) {  // Was 20
-                        shape.type = this.classifyShape(shape);
-                        shape.symbolWeight = this.calculateSymbolWeight(shape);
+                    if (shape && shape.points && shape.points.length) {
                         shapes.push(shape);
                     }
                 }
             }
         }
-        
-        // Sort by perceptual importance
-        shapes.sort((a, b) => b.symbolWeight - a.symbolWeight);
-        
         return shapes;
     }
+    
     
     /**
      * Proper CIEDE2000 color difference implementation
@@ -781,7 +770,7 @@ class PerceptualAlchemyEncoder {
     
     encodeObjectsWithEntropy(shapes, budget) {
         if (!Array.isArray(shapes) || shapes.length === 0) {
-            return ''.padEnd(budget, '0');   // safe padding, no objects
+            return ''.padEnd(budget, '0');
         }
         const encodedObjects = [];
         let currentLength = 0;
@@ -818,24 +807,23 @@ class PerceptualAlchemyEncoder {
      * Encode position with spatial context
      */
     encodePosition(centroid, boundingBox, length = 1) {
-        // Normalize position to 0-1
-        const nx = centroid.x / this.imageWidth;  // Set imageWidth in the encoder from the input imageData.width
-        const ny = centroid.y / this.imageHeight; // Ditto for height
-        
+        // normalise to 0-1
+        const nx = centroid.x / this.imageWidth;
+        const ny = centroid.y / this.imageHeight;
+    
         if (length === 1) {
-            // Single character position encoding (3x3 grid)
+            // coarse 3×3 grid
             const gridX = Math.floor(nx * 3);
             const gridY = Math.floor(ny * 3);
-            const gridPos = gridY * 3 + gridX;
-            
-            const positionChars = '123456789';
-            return positionChars[Math.min(8, Math.max(0, gridPos))];
-        } else {
-            // Multi-character for higher precision
-            const posX = this.quantizeToSymbol(nx);
-            const posY = this.quantizeToSymbol(ny);
-            return posX + posY;
+            const gridPos = gridY * 3 + gridX;          // 0 … 8
+            const positionChars = 'abcdefghi';           // letters, not digits
+            return positionChars[Math.max(0, Math.min(8, gridPos))];
         }
+    
+        // finer precision: two quantised symbols (still letters)
+        const posX = this.quantizeToSymbol(nx);         // e.g. 'm'
+        const posY = this.quantizeToSymbol(ny);         // e.g. 'q'
+        return posX + posY;
     }
     
     encodeSpatialWithDepth(spatial, budget) {
@@ -1746,20 +1734,30 @@ class DynamicVocabulary {
         return vocab[Math.abs(hash) % vocab.length];
     }
     
-    getSymbolWithLength(category, value, length) {
-        // Adaptive length encoding
+    getSymbolWithLength(category, value, length = 1) {
+        // base symbol for this category
         const base = this.getSymbol(category, value);
-        
-        if (length === 1) return base;
-        
-        // Add modifier symbols for longer codes
+    
+        // ── Objects MUST stay a-z only ────────────────────────────────
+        if (category === 'object') {
+            const vocab = this.vocabularies.object;   // ["a"-"z"]
+            let code = base;
+            // deterministic secondary letters – never +,=,/ or digits
+            for (let i = 1; i < length; i++) {
+                const idx = (base.charCodeAt(0) - 97 + i) % vocab.length;
+                code += vocab[idx];
+            }
+            return code.slice(0, length);
+        }
+    
+        // ── Other categories keep their original modifiers ────────────
         let code = base;
         for (let i = 1; i < length; i++) {
             code += this.getSymbol('modifier', value + i);
         }
-        
-        return code.substring(0, length);
+        return code.slice(0, length);
     }
+    
 }
 
 // === EXPORT =================================================================
