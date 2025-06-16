@@ -21,7 +21,9 @@ class PerceptualAlchemyEncoder {
         this.emotionalBuffer = [];
         
         // Perceptual constants
-        this.EDGE_THRESHOLD = this.mode === 'mobile' ? 100 : 64;
+        this.EDGE_THRESHOLD = options.edgeThreshold || this.mode === 'mobile' ? 100 : 64;
+        this.MIN_SHAPE_AREA = options.minShapeArea || 50; // Increase from 20
+        this.MAX_SHAPES = options.maxShapes || 50; // Limit shape count
         this.SAMPLE_RATE = this.mode === 'mobile' ? 8 : 4;
         
         // Symbol allocation budgets
@@ -34,6 +36,56 @@ class PerceptualAlchemyEncoder {
         // Debug mode for symbol visualization
         this.debug = options.debug || false;
         this.symbolMap = new Map();
+    }
+    
+    clusterShapes(shapes, maxCount = 50) {
+        if (shapes.length <= maxCount) return shapes;
+        
+        // Sort by importance
+        shapes.sort((a, b) => b.symbolWeight - a.symbolWeight);
+        
+        // Take top shapes
+        const primaryShapes = shapes.slice(0, maxCount * 0.6);
+        const remaining = shapes.slice(maxCount * 0.6);
+        
+        // Cluster nearby shapes
+        const clusters = [];
+        remaining.forEach(shape => {
+            const nearestCluster = clusters.find(c => 
+                Math.abs(c.centroid.x - shape.centroid.x) < 50 &&
+                Math.abs(c.centroid.y - shape.centroid.y) < 50
+            );
+            
+            if (nearestCluster) {
+                nearestCluster.shapes.push(shape);
+                // Update cluster centroid
+                nearestCluster.centroid.x = 
+                    nearestCluster.shapes.reduce((sum, s) => sum + s.centroid.x, 0) / 
+                    nearestCluster.shapes.length;
+                nearestCluster.centroid.y = 
+                    nearestCluster.shapes.reduce((sum, s) => sum + s.centroid.y, 0) / 
+                    nearestCluster.shapes.length;
+            } else {
+                clusters.push({
+                    centroid: { ...shape.centroid },
+                    shapes: [shape],
+                    type: shape.type,
+                    area: shape.area,
+                    symbolWeight: shape.symbolWeight
+                });
+            }
+        });
+        
+        // Convert clusters back to shapes
+        const clusteredShapes = clusters.map(c => ({
+            type: c.type || 'cluster',
+            centroid: c.centroid,
+            area: c.shapes.reduce((sum, s) => sum + s.area, 0),
+            symbolWeight: c.shapes.reduce((sum, s) => sum + s.symbolWeight, 0) / c.shapes.length,
+            boundingBox: this.calculateClusterBounds(c.shapes)
+        }));
+        
+        return [...primaryShapes, ...clusteredShapes].slice(0, maxCount);
     }
     
     // === PUBLIC API =========================================================
@@ -251,14 +303,19 @@ class PerceptualAlchemyEncoder {
         const shapes = [];
         const visited = new Uint8Array(width * height);
         
-        for (let y = 0; y < height; y += this.SAMPLE_RATE * 2) {
-            for (let x = 0; x < width; x += this.SAMPLE_RATE * 2) {
+        // Increase sampling rate for pixel art detection
+        const adaptiveSampleRate = this.detectPixelArt(edges.map, width, height) ? 
+            this.SAMPLE_RATE * 4 : this.SAMPLE_RATE * 2;
+        
+        for (let y = 0; y < height; y += adaptiveSampleRate) {
+            for (let x = 0; x < width; x += adaptiveSampleRate) {
                 const idx = y * width + x;
                 
                 if (edges.map[idx] > this.EDGE_THRESHOLD && !visited[idx]) {
                     const shape = this.marchingSquares(edges.map, visited, x, y, width, height);
                     
-                    if (shape.area > 20) {
+                    // Increased minimum area for pixel art
+                    if (shape.area > this.MIN_SHAPE_AREA) {
                         shape.type = this.classifyShape(shape);
                         shape.symbolWeight = this.calculateSymbolWeight(shape);
                         shapes.push(shape);
@@ -267,12 +324,34 @@ class PerceptualAlchemyEncoder {
             }
         }
         
-        // Sort by perceptual importance
-        shapes.sort((a, b) => b.symbolWeight - a.symbolWeight);
+        // Cluster if too many shapes
+        const finalShapes = this.clusterShapes(shapes, this.MAX_SHAPES);
         
-        return shapes;
+        // Sort by perceptual importance
+        finalShapes.sort((a, b) => b.symbolWeight - a.symbolWeight);
+        
+        return finalShapes;
     }
     
+    detectPixelArt(edgeMap, width, height) {
+        // Sample grid regularity
+        let gridScore = 0;
+        const sampleSize = Math.min(100, width * height / 100);
+        
+        for (let i = 0; i < sampleSize; i++) {
+            const idx = Math.floor(Math.random() * edgeMap.length);
+            const x = idx % width;
+            const y = Math.floor(idx / width);
+            
+            // Check for regular grid patterns
+            if (x % 8 === 0 || y % 8 === 0) {
+                if (edgeMap[idx] > this.EDGE_THRESHOLD) gridScore++;
+            }
+        }
+        
+        return gridScore > sampleSize * 0.3;
+    }
+
     /**
      * Proper CIEDE2000 color difference implementation
      */

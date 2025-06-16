@@ -244,11 +244,10 @@ class PerceptualAlchemyDecoder {
     // === VALIDATION & ERROR CORRECTION ======================================
     
     validateAndCorrect(code) {
-        // Remove any whitespace
         code = code.trim();
         
-        // Check basic format
-        if (!/^[A-Za-z0-9αβγδ]{16,33}$/.test(code)) {
+        // FIXED: Include all possible encoder symbols
+        if (!/^[A-Za-z0-9!@#$%αβγδ]{16,33}$/.test(code)) {
             return { valid: false, error: 'Invalid character set' };
         }
         
