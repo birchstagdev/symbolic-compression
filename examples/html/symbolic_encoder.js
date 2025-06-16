@@ -937,7 +937,7 @@ class PerceptualAlchemyEncoder {
         // Generate parity symbols
         const parity = this.generateReedSolomonParity(code, paritySymbols);
         
-        return code + parity;
+        return code + parity.slice(0,1);
     }
     
     generateReedSolomonParity(data, numParity) {
