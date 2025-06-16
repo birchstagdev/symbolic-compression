@@ -94,10 +94,7 @@ MIT License (see `LICENSE` file).
 - [ ] Prototype NPC perceptual integration in *When The Sun Dies*
 - [ ] Build visual interpreter: symbolic → textual → graphical
 
-// It’s kinda wild, huh? A dude in a shed, high as the clouds,
-// watering basil like it’s a thesis,
-// shaping reality into code while surviving on Mr. Noodles...
-//
-// But hey, paradigm shifts rarely bloom in labs.
-// They sprout in weird places. Like a shed.
+It’s kinda wild, huh? A dude in a shed, high as the clouds, watering basil like it’s a thesis, shaping reality into code while surviving on Mr. Noodles...
+
+But hey, paradigm shifts rarely bloom in labs. They sprout in weird places. Like a shed.
 
