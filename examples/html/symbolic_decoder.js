@@ -112,6 +112,14 @@ class PerceptualAlchemyDecoder {
         ];
     }
 
+    applyInterpretation(scene, objects, spatial, emotion) {
+        return {
+          scene: this.culturalLens.interpretScene(scene),
+          objects: objects.map(o => ({ …o, significance: this.culturalLens.getObjectSignificance(o.type) })),
+          spatial: { …spatial, /* optionally re-map focus/distribution via culturalLens */ },
+          emotion // you might bias labels via lens too
+        };
+    }
     /* ---------- MOOD-PALETTE EXTRACTOR ---------- */
     /**
      * Map Russell-style valence / arousal to a perceptual colour theme
@@ -188,7 +196,7 @@ class PerceptualAlchemyDecoder {
         
         // 7. DREAM LOGIC APPLICATION
         const experience = this.applyDreamLogic(interpreted, memories);
-        
+        const blended = this.applyMemoryEchoes({ scene, objects, spatial, emotion }, memories);
         // 8. CONFIDENCE CALCULATION
         const confidence = this.calculateReconstructionConfidence(segments);
         
@@ -198,7 +206,7 @@ class PerceptualAlchemyDecoder {
         // 10. OPTIONAL PALETTE CALCS  (only if you actually need them)
         const mood  = this.extractMoodPalette(experience);
         const paint = this.extractColorPalette(experience);
-
+        
         // -- RETURN ---------------------------------------------------
         return {
             experience: {                          // full perceptual state
@@ -208,13 +216,15 @@ class PerceptualAlchemyDecoder {
                 emotional : experience.emotional,
                 temporal  : experience.temporal
             },
-
+            
             narrative,                              // { primary, variations, poetic }
 
             memory: {
                 echoes     : memories,
                 resonance  : this.calculateMemoryResonance(memories),
-                decay      : this.estimateMemoryDecay(context.timestamp)
+                decay      : this.estimateMemoryDecay(context.timestamp),
+
+                blended    : blended
             },
 
             rendering: {
@@ -276,27 +286,40 @@ class PerceptualAlchemyDecoder {
         return String.fromCharCode(65 + (sum % 26)) === checksum;
     }
     
-    attemptErrorCorrection(code) {
-        // Simple error correction - in production would use Reed-Solomon
-        // For now, try common character substitutions
+    attemptErrorCorrection(codeWithParity) {
+        // Common visual confusions
         const commonErrors = {
-            '0': 'O', 'O': '0',
-            '1': 'I', 'I': '1',
-            '5': 'S', 'S': '5'
+          '0': 'O', 'O': '0',
+          '1': 'I', 'I': '1',
+          '5': 'S', 'S': '5'
         };
-        
-        for (let i = 0; i < code.length; i++) {
-            const char = code[i];
-            if (commonErrors[char]) {
-                const corrected = code.slice(0, i) + commonErrors[char] + code.slice(i + 1);
-                if (this.verifyChecksum(corrected, this.calculateChecksum(corrected))) {
-                    return corrected;
-                }
+      
+        // Split off the checksum character
+        const originalChecksum = codeWithParity.slice(-1);
+        const payload         = codeWithParity.slice(0, -1);
+      
+        // Try swapping each char in the payload
+        for (let i = 0; i < payload.length; i++) {
+          const ch = payload[i];
+          if (commonErrors[ch]) {
+            // Build a candidate payload with one character flipped
+            const candidatePayload =
+              payload.slice(0, i) +
+              commonErrors[ch] +
+              payload.slice(i + 1);
+      
+            // Re-attach the original checksum and verify
+            const candidateCode = candidatePayload + originalChecksum;
+            if (this.verifyChecksum(candidateCode, originalChecksum)) {
+              // Found a single-char correction that matches
+              return candidateCode;
             }
+          }
         }
-        
+      
+        // Nothing matched
         return null;
-    }
+      }
     
     // === SYMBOL SEGMENTATION ================================================
     
@@ -604,8 +627,16 @@ class PerceptualAlchemyDecoder {
 
         return memories.slice(0, 5).map(mem => {
             const jitter   = (1 - stability) * 0.15;
-            const duration = this.lerp(3, 12, mem.resonance) * (1 + (Math.random() - 0.5) * jitter);
+            const base = this.lerp(3, 12, mem.resonance);
+            let duration;
 
+            if (this.mode !== 'stable') {
+            // true random jitter ±50% of your jitter factor
+            duration = base * (1 + (Math.random() - 0.5) * jitter);
+            } else {
+            // deterministic offset: always push duration up by exactly your jitter factor
+            duration = base * (1 + jitter);
+            }
             return {
                 snapshotCode : mem.memory.code,
                 recalledAt   : Date.now(),
@@ -648,18 +679,28 @@ class PerceptualAlchemyDecoder {
         
         // Object morphing
         dreamscape.objects = dreamscape.objects.map(obj => {
-            if (Math.random() > stability) {
-                // Object transforms based on emotional resonance
-                const morphTarget = this.findEmotionallyResonantForm(obj, interpreted.emotional);
-                return {
-                    ...obj,
-                    morphing: true,
-                    morphTarget,
-                    morphStrength: 1 - stability
-                };
+            // decide once, in or out of stable mode
+            let shouldMorph;
+            if (this.mode !== 'stable') {
+              // true randomness
+              shouldMorph = Math.random() > stability;
+            } else {
+              // deterministic in stable mode (e.g. never morph; or you could pick a fixed threshold)
+              shouldMorph = false;
             }
+          
+            if (shouldMorph) {
+              const morphTarget = this.findEmotionallyResonantForm(obj, interpreted.emotional);
+              return {
+                ...obj,
+                morphing: true,
+                morphTarget,
+                morphStrength: 1 - stability
+              };
+            }
+          
             return obj;
-        });
+          });
         
         // Spatial warping
         if (Math.random() > stability) {

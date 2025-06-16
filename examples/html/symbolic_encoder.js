@@ -958,31 +958,38 @@ class PerceptualAlchemyEncoder {
         return code.padEnd(budget, '5');
     }
     
-    // === ERROR CORRECTION ===================================================
+    calculateChecksum(str) {
+        // e.g. sum all char-codes then map to A–Z
+        const sum = str
+          .split('')
+          .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+        return String.fromCharCode( (sum % 26) + 65 );
+    }
     
-    /**
-     * Reed-Solomon error correction implementation
-     */
-    addReedSolomonErrorCorrection(code) {
-        // For production, use a proper RS library
-        // This is a simplified implementation
-        const dataSymbols = code.length;
-        const paritySymbols = Math.max(2, Math.floor(dataSymbols * 0.1)); // 10% redundancy
-        
-        // Generate parity symbols
+    addReedSolomonErrorCorrection(code, paritySymbols = this.paritySymbols) {
         const parity = this.generateReedSolomonParity(code, paritySymbols);
-        
         return code + parity;
     }
-    
+
     generateReedSolomonParity(data, numParity) {
-        // Simplified but functional checksum for now
-        const checksum = data.split('').reduce((sum, char, i) => 
-            (sum + char.charCodeAt(0) * (i + 1)) % 256, 0);
-        
-        return String.fromCharCode(65 + (checksum % 26));
-    }
+        let rolling  = data;
+        let parity   = '';
     
+        for (let i = 0; i < numParity; i++) {
+          // use the *same* checksum routine your validator uses
+          const sum = rolling
+            .split('')
+            .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+          const c = String.fromCharCode((sum % 26) + 65);  // A–Z
+          parity  += c;
+          rolling += c;  // include this symbol in the next checksum
+        }
+    
+        return parity;
+      }
+    }
+
+
     // === NARRATIVE GENERATION ===============================================
     
     generateNarrativeHint(perception, emotion) {
