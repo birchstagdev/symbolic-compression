@@ -9,7 +9,18 @@
 // or stable interpretations based on context and memory.
 // =====================================================
 
-class PerceptualAlchemyDecoder {
+class PerceptualAlchemyDecoder {   
+        /* ---------- QUANTISATION HELPERS ---------- */
+
+    /** Reverse of encoder.quantizeToSymbol(A-Z → 0-1) */
+    decodeQuantizedValue(ch) {
+        const idx = ch.toUpperCase().charCodeAt(0) - 65;
+        return Math.max(0, Math.min(25, idx)) / 25;
+    }
+
+    /** Blend two scalar values with weight w (0-1) */
+    lerp(a, b, w = 0.5) { return a * (1 - w) + b * w; }
+
     constructor(options = {}) {
         this.mode = options.mode || 'stable'; // stable | dreamlike | npc
         this.culture = options.culture || 'universal';
@@ -19,6 +30,12 @@ class PerceptualAlchemyDecoder {
         // Load cultural interpretation matrix
         this.culturalLens = this.loadCulturalLens(this.culture);
         
+            // ---- in constructor (after loadCulturalLens):
+        if (this.culture.includes('+')) {
+            const [c1, c2] = this.culture.split('+');
+            const L1 = this.loadCulturalLens(c1), L2 = this.loadCulturalLens(c2);
+            this.culturalLens = this.blendLenses(L1, L2, 0.5);
+        }
         // Symbol interpretation system
         this.symbolInterpreter = new SymbolInterpreter(this.culturalLens);
         
@@ -38,7 +55,71 @@ class PerceptualAlchemyDecoder {
             emotionalBleed: this.mode === 'npc' ? 0.7 : 0.4
         };
     }
+
     
+
+        /* ---------- FOCAL-POINT CALCULATION ---------- */
+    calculateFocalPoints(exp) {
+        // Weight objects by importance & emotional weight
+        const pts = exp.objects.map(o => ({
+            x: o.position.x, y: o.position.y,
+            w: (o.importance || 0.5) * (o.emotionalWeight || 1)
+        }));
+
+        if (pts.length === 0) return [{ x: 0.5, y: 0.5, strength: 0 }];
+
+        // Centre-of-mass focal point
+        const totalW = pts.reduce((s, p) => s + p.w, 0);
+        const cx     = pts.reduce((s, p) => s + p.x * p.w, 0) / totalW;
+        const cy     = pts.reduce((s, p) => s + p.y * p.w, 0) / totalW;
+
+        // Return primary + 2 secondary
+        pts.sort((a, b) => b.w - a.w);
+        return [
+            { x: cx, y: cy, strength: 1 },
+            ...pts.slice(0, 2).map(p => ({ x: p.x, y: p.y, strength: p.w / totalW }))
+        ];
+    }
+
+    /* ---------- MOOD-PALETTE EXTRACTOR ---------- */
+    /**
+     * Map Russell-style valence / arousal to a perceptual colour theme
+     * @param {Object} emotional  – decoder.emotional or { valence, arousal }
+     * @returns {Object}          – { h, s, b, css, adjective }
+     */
+    extractMoodPalette(emotional) {
+        // Accept either decoder.emotional.current or a flat object
+        const V = emotional.valence  ?? emotional.current?.valence  ?? 0.5; // 0-1
+        const A = emotional.arousal  ?? emotional.current?.arousal  ?? 0.5; // 0-1
+
+        /* ---- 1.   Hue  (°)  -------------------------------------------------
+        Low-arousal negative → cold blue.
+        High-arousal positive → hot red/orange.
+        Everything in between arcs smoothly through the colour wheel. */
+        const hue = (360 * (
+            0.75                     // anchor “sad/calm” at 270° ≈ blue-purple
+            + V * 0.25               // positive shift → clockwise to red
+            - A * 0.25               // arousal shifts hue toward hotter end
+        )) % 360;                    // keep in 0-360
+
+        /* ---- 2. Saturation & Brightness ------------------------------------ */
+        const sat = 40 + A * 40;      // calmer scenes → pastel, intense → vivid
+        const bri = 40 + V * 40;      // negative → dim, positive → bright
+
+        /* ---- 3. Simple semantic adjective (optional) ----------------------- */
+        const adjective =
+            V > 0.66 ? (A > 0.66 ? 'vibrant'  : 'serene')
+            : V < 0.33 ? (A > 0.66 ? 'anxious'  : 'somber')
+            :              (A > 0.66 ? 'restless' : 'neutral');
+
+        return {
+            h : Math.round(hue),        // 0-360
+            s : Math.round(sat),        // 0-100
+            b : Math.round(bri),        // 0-100
+            css : `hsl(${hue}deg ${sat}% ${bri}%)`,
+            adjective                    // handy for text descriptions
+        };
+    }
     // === PUBLIC API =========================================================
     
     /**
@@ -80,36 +161,53 @@ class PerceptualAlchemyDecoder {
         // 8. CONFIDENCE CALCULATION
         const confidence = this.calculateReconstructionConfidence(segments);
         
+        // 9. ENTROPY DIAGNOSTICS  (place this before the return)
+        const entropy = this.estimateSymbolEntropy(validated.code);   // or codeStr
+
+        // 10. OPTIONAL PALETTE CALCS  (only if you actually need them)
+        const mood  = this.extractMoodPalette(experience);
+        const paint = this.extractColorPalette(experience);
+
+        // -- RETURN ---------------------------------------------------
         return {
-            experience: {
-                scene: experience.scene,
-                objects: experience.objects,
-                spatial: experience.spatial,
-                emotional: experience.emotional,
-                temporal: experience.temporal
+            experience: {                          // full perceptual state
+                scene     : experience.scene,
+                objects   : experience.objects,
+                spatial   : experience.spatial,
+                emotional : experience.emotional,
+                temporal  : experience.temporal
             },
-            narrative: {
-                primary: narrative.primary,
-                variations: narrative.variations,
-                poetic: narrative.poetic
-            },
+
+            narrative,                              // { primary, variations, poetic }
+
             memory: {
-                echoes: memories,
-                resonance: this.calculateMemoryResonance(memories),
-                decay: this.estimateMemoryDecay(context.timestamp)
+                echoes     : memories,
+                resonance  : this.calculateMemoryResonance(memories),
+                decay      : this.estimateMemoryDecay(context.timestamp)
             },
+
             rendering: {
-                hints: this.generateRenderingHints(experience),
-                mood: this.extractMoodPalette(experience),
-                focus: this.calculateFocalPoints(experience)
+                hints  : this.generateRenderingHints(experience),
+                focus  : this.calculateFocalPoints(experience),
+                palettes : { mood, paint }          // <- optional
             },
+
+            metrics: {                              // NEW, no clash
+                entropyBitsPerSymbol : entropy.bitsPerSymbol,
+                totalBits            : entropy.totalBits,
+                length               : validated.code.length
+            },
+
             metadata: {
                 confidence,
-                mode: this.mode,
-                culture: this.culture,
-                processingTime: performance.now() - startTime
+                isReliable      : confidence >= this.confidenceThreshold,
+                mode            : this.mode,
+                culture         : this.culture,
+                processingTime  : performance.now() - startTime
             }
         };
+
+        
     }
     
     // === VALIDATION & ERROR CORRECTION ======================================
@@ -257,6 +355,59 @@ class PerceptualAlchemyDecoder {
         
         return objects;
     }
+
+        /* ---------- POSITION DECODER ---------- */
+    decodePosition(symbols) {
+        const grid = '123456789';                         // encoder table :contentReference[oaicite:1]{index=1}
+
+        // ── 1-char, coarse (3×3) ──────────────────────
+        if (symbols.length === 1 && grid.includes(symbols[0])) {
+            const i  = grid.indexOf(symbols[0]);
+            const gx = i % 3, gy = Math.floor(i / 3);
+
+            // centre of the cell ( ≈ encoder’s +0.5 offset )
+            return { x: (gx + 0.5) / 3, y: (gy + 0.5) / 3 };
+        }
+
+        // ── 2-char, high-precision (A-Z × A-Z) ─────────
+        if (symbols.length === 2) {
+            return {
+                x: this.decodeQuantizedValue(symbols[0]),
+                y: this.decodeQuantizedValue(symbols[1])
+            };
+        }
+
+        // Fallback – centre of frame
+        return { x: 0.5, y: 0.5 };
+    }
+
+        /* ---------- DEPTH-LAYER DECODER ---------- */
+    decodeDepthLayers(code = '') {
+        if (!code) {
+            return { distribution: 'flat', foregroundWeight: 0.33 };
+        }
+
+        const distMap = {           // encoder used DynamicVocabulary depth “!@#$%” :contentReference[oaicite:2]{index=2}
+            '!': 'forward',   '@': 'distant',
+            '#': 'balanced',  '$': 'centered',
+            '%': 'flat'
+        };
+
+        const distribution      = distMap[code[0]] || 'balanced';
+        const foregroundWeight  = code[1] ? this.decodeQuantizedValue(code[1]) : 0.33;
+
+        // Derive simple foreground/mid/background split for narrative & maths
+        return {
+            distribution,
+            foregroundWeight,
+            layers: {
+                foreground : foregroundWeight,
+                midground  : this.lerp(0.2, 0.4, 1 - Math.abs(0.5 - foregroundWeight) * 2),
+                background : 1 - foregroundWeight
+            }
+        };
+    }
+
     
     decodeObject(segment) {
         const type = this.symbolInterpreter.decodeObjectType(segment[0]);
@@ -387,6 +538,38 @@ class PerceptualAlchemyDecoder {
         return blended;
     }
     
+        /* ---------- TEMPORAL-FRAGMENT GENERATOR ---------- */
+    generateTemporalFragments(memories, stability = 0.7) {
+        if (!memories || memories.length === 0) return [];
+
+        return memories.slice(0, 5).map(mem => {
+            const jitter   = (1 - stability) * 0.15;
+            const duration = this.lerp(3, 12, mem.resonance) * (1 + (Math.random() - 0.5) * jitter);
+
+            return {
+                snapshotCode : mem.memory.code,
+                recalledAt   : Date.now(),
+                durationSec  : duration,
+                faded        : mem.age > 60 * 60 * 24 // older than a day
+            };
+        });
+    }
+
+        /* ---------- ENTROPY ESTIMATOR ---------- */
+    estimateSymbolEntropy(codeStr) {
+        const catBits = ch =>
+            /[A-Z]/.test(ch)      ? 5 :
+            /[a-z]/.test(ch)      ? 5 :
+            /[0-9]/.test(ch)      ? 4 :
+            /[!@#$%]/.test(ch)    ? 3 :
+            /[α-δ]/.test(ch)      ? 4 : 6;  // unicode / fallback
+
+        const totalBits = [...codeStr].reduce((s, c) => s + catBits(c), 0);
+        return {
+            bitsPerSymbol : totalBits / codeStr.length,
+            totalBits
+        };
+    }
     // === DREAM LOGIC ========================================================
     
     applyDreamLogic(interpreted, memories) {
@@ -442,6 +625,29 @@ class PerceptualAlchemyDecoder {
         
         return dreamscape;
     }
+
+        /* ---------- COLOR-PALETTE EXTRACTOR ---------- */
+    extractColorPalette(exp) {
+        // Cultural semantics first
+        const meanings = this.culturalLens.colorMeanings || {};
+        const base     = Object.keys(meanings);
+
+        // Emotionally shift palette toward valence/arousal
+        const v = exp.emotional.current.valence;
+        const a = exp.emotional.current.arousal;
+
+        // Simple rule-based tint
+        const moodTint = v > 0.6 ? (a > 0.6 ? 'warm' : 'pastel')
+                    : v < 0.4 ? (a > 0.6 ? 'neon' : 'cool')
+                    : 'neutral';
+
+        return {
+            keyColors : base.slice(0, 3),
+            accent    : moodTint,
+            semantics : base.reduce((out, c) => { out[c] = meanings[c]; return out; }, {})
+        };
+    }
+
     
     // === NARRATIVE GENERATION ===============================================
     
@@ -539,10 +745,34 @@ class PerceptualAlchemyDecoder {
                     blue: 'wisdom'
                 }
             }
+            
         };
         
         return lenses[culture] || lenses.universal;
     }
+
+    blendLenses(primary, secondary, weight = 0.5) {
+        const lerpObj = (a, b) => {
+            const out = { ...a };
+            Object.entries(b).forEach(([k, v]) => {
+                out[k] = a[k] ? this.lerp(a[k], v, weight) : v;
+            });
+            return out;
+        };
+    
+        return {
+            interpretScene      : (t) => lerpObj(primary.interpretScene(t), secondary.interpretScene(t)),
+            getObjectSignificance : (o) => this.lerp(
+                primary.getObjectSignificance(o),
+                secondary.getObjectSignificance(o),
+                weight
+            ),
+            colorMeanings : { ...primary.colorMeanings, ...secondary.colorMeanings }
+        };
+    }
+    
+   
+    
     
     handleInvalidCode(validated) {
         return {
