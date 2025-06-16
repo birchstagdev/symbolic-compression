@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perceptual Alchemy Test</title>
+    <style>
+        body { 
+            font-family: monospace; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #1a1a1a;
+            color: #f0f0f0;
+        }
+        .panel { 
+            background: #2a2a2a; 
+            padding: 20px; 
+            margin: 10px 0; 
+            border-radius: 8px;
+        }
+        canvas { 
+            border: 2px solid #444; 
+            display: block; 
+            margin: 10px 0;
+        }
+        .code-display { 
+            font-size: 1.2em; 
+            background: #000; 
+            padding: 10px; 
+            word-break: break-all;
+            color: #0f0;
+        }
+        button { 
+            background: #4a4a4a; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            margin: 5px;
+            cursor: pointer;
+        }
+        button:hover { background: #5a5a5a; }
+        .log { 
+            max-height: 200px; 
+            overflow-y: auto; 
+            background: #111; 
+            padding: 10px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Perceptual Alchemy: Encoder/Decoder Test</h1>
+    
+    <div class="panel">
+        <h3>Input</h3>
+        <canvas id="inputCanvas" width="320" height="240"></canvas>
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="clearCanvas()">Clear</button>
+        <button onclick="drawTestScene()">Test Scene</button>
+        <button onclick="showCanvasPreview()">Show Preview</button>
+        <div id="previewPanel" style="margin-top: 16px; padding: 10px; background: #222; border-radius: 8px; text-align: center; max-width: 160px;">
+            <img id="canvasPreview" style="display: none; width: 160px; height: 120px; border: 2px solid #444; border-radius: 6px;">
+        </div>
+    </div>
+    
+    <div class="panel">
+        <h3>Encoding</h3>
+        <button onclick="encode()">Encode</button>
+        <select id="mode">
+            <option value="mobile">Mobile (16 char)</option>
+            <option value="balanced" selected>Balanced (26 char)</option>
+            <option value="rich">Rich (32 char)</option>
+        </select>
+        <select id="culture">
+            <option value="universal">Universal</option>
+            <option value="japanese">Japanese</option>
+            <option value="norse">Norse</option>
+        </select>
+        <div class="code-display" id="codeDisplay">-</div>
+    </div>
+    
+    <div class="panel">
+        <h3>Decoding</h3>
+        <button onclick="decode()">Decode</button>
+        <select id="decodeMode">
+            <option value="stable">Stable</option>
+            <option value="dreamlike">Dreamlike</option>
+            <option value="npc">NPC</option>
+        </select>
+        <div id="narrative" style="margin-top: 10px;"></div>
+    </div>
+    
+    <div class="panel">
+        <h3>Debug Log</h3>
+        <div class="log" id="log"></div>
+    </div>
+
+    <!-- Load your scripts -->
+    <script src="symbolic_encoder.js"></script>
+    <script src="symbolic_decoder.js"></script>
+    <script src="perceptual_system.js"></script>
+    
+    <script>
+        let encoder, decoder;
+        if (window.location.protocol === "file:") {
+            alert("⚠️ This demo must be run from a local web server or deployed online! File uploads and canvas drawing will not work when opened as a file. Please use Live Server, Python http.server, or deploy to GitHub Pages.");
+        }
+
+        const ctx = document.getElementById('inputCanvas').getContext('2d');
+       
+        function log(msg) {
+            const logEl = document.getElementById('log');
+            logEl.innerHTML += `${new Date().toLocaleTimeString()}: ${msg}<br>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function isCanvasBlank(ctx, width, height) {
+            const imageData = ctx.getImageData(0, 0, width, height);
+            // Sum all RGBA values
+            let allTransparent = true;
+            let allWhite = true;
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                const r = imageData.data[i];
+                const g = imageData.data[i+1];
+                const b = imageData.data[i+2];
+                const a = imageData.data[i+3];
+                if (a !== 0) allTransparent = false;
+                if (!(r === 255 && g === 255 && b === 255 && a === 255)) allWhite = false;
+                if (!allTransparent && !allWhite) break;
+            }
+            return {allTransparent, allWhite};
+        }
+        
+        const blankCheck = isCanvasBlank(ctx, 320, 240);
+        if (blankCheck.allTransparent) {
+            log("Warning: Image is fully transparent. Try flattening or merging layers before export.");
+            return;
+        }
+        if (blankCheck.allWhite) {
+            log("Warning: Image is all white. Are you sure you loaded the correct image?");
+            // Continue or return, your choice
+        }
+
+        function showCanvasPreview() {
+            const canvas = document.getElementById('inputCanvas');
+            const img = document.getElementById('canvasPreview');
+            img.src = canvas.toDataURL();
+            img.style.display = 'inline-block';
+            log('Preview image updated from canvas.');
+        }
+
+
+        function encode() {
+            try {
+                const imageData = ctx.getImageData(0, 0, 320, 240);
+                if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
+                    log('Invalid image data');
+                    return;
+                }
+                perceptualSystem.encoder.mode = document.getElementById('mode').value;
+                perceptualSystem.encoder.culture = document.getElementById('culture').value;
+                const result = perceptualSystem.encode(imageData);
+                if (!result || !result.code) {
+                    log('Encode failed: No code returned');
+                    return;
+                }
+                document.getElementById('codeDisplay').textContent = result.code;
+                log(`Encoded: ${result.code} (${result.code.length} chars)`);
+                log(`Confidence: ${(result.confidence * 100).toFixed(1)}%`);
+                window.lastEncoding = result;
+            } catch (e) {
+                log(`Error: ${e.message}`);
+            }
+        }
+
+        
+        function decode() {
+            try {
+                const code = document.getElementById('codeDisplay').textContent;
+                if (code === '-') {
+                    log('No code to decode');
+                    return;
+                }
+                
+                perceptualSystem.decoder.mode = document.getElementById('decodeMode').value;
+                const result = perceptualSystem.decode(code);
+                
+                document.getElementById('narrative').innerHTML = `
+                    <strong>Scene:</strong> ${result.narrative.primary}<br>
+                    <strong>Mood:</strong> ${result.narrative.poetic}<br>
+                    <strong>Confidence:</strong> ${(result.metadata.confidence * 100).toFixed(1)}%
+                `;
+                
+                log(`Decoded with ${result.memory.echoes.length} memory echoes`);
+            } catch (e) {
+                log(`Error: ${e.message}`);
+            }
+        }
+                
+        function clearCanvas() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, 320, 240);
+        }
+        
+        function drawTestScene() {
+            clearCanvas();
+            // Simple test scene
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, 320, 120);
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, 120, 320, 120);
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(140, 80, 40, 60);
+            ctx.fillStyle = '#FFA500';
+            ctx.beginPath();
+            ctx.arc(260, 60, 30, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        document.getElementById('imageInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    console.log('Image loaded:', img.width, img.height);
+                    ctx.clearRect(0, 0, 320, 240);
+                    ctx.fillStyle = "#f00"; ctx.fillRect(0,0,320,240);
+                    ctx.drawImage(img, 0, 0, 320, 240);
+                    log("Image loaded and drawn to canvas!");
+                    showCanvasPreview();
+                };
+                img.onerror = (err) => {
+                    log("Image failed to load: " + err);
+                    console.error('Image failed:', err);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+
+        
+        function init() {
+            window.perceptualSystem = new PerceptualSystem({
+                encoderMode: 'balanced',
+                decoderMode: 'stable',
+                debug: true
+            });
+
+            encoder = perceptualSystem.encoder;
+            decoder = perceptualSystem.decoder;
+
+            // Automated pipeline check
+            try {
+                const testCode = "ILVδ000000000000Z4%AXXOK6KN";
+                const result = perceptualSystem.decode(testCode);
+                if (!result.narrative || !result.narrative.primary) {
+                    throw new Error("Self-test failed: narrative missing");
+                }
+                log("Self-test passed: decoding output is valid.");
+            } catch (err) {
+                log("Self-test failed: " + err.message);
+            }
+
+            log('System initialized');
+        }
+
+        window.onload = init;
+
+    </script>
+</body>
+</html>

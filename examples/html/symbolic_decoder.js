@@ -56,7 +56,38 @@ class PerceptualAlchemyDecoder {
         };
     }
 
-    
+    /**
+     * Generates a symbolic fallback experience if decoding fails or the code is unrecognized.
+     * Ensures graceful output and continuity, aligned with the system's philosophy.
+     * @param {string} code - The original (unparsed) symbolic code, if available.
+     * @returns {object} A minimal symbolic scene object with neutral, poetic, and emotionally plausible defaults.
+     */
+    generateFallbackExperience(code = "") {
+        return {
+            code: code || "UNKNOWN",
+            scene: "unresolved memory",
+            mood: "neutral",
+            narrative: {
+                primary: "A memory that cannot be recalled.",
+                poetic: "Like sunlight lost behind clouds, the moment slips away, undefined and weightless.",
+                emotion: "detached"
+            },
+            objects: [],
+            focusZone: null,
+            complexity: 0,
+            memory: {
+                echoes: [],
+                resonance: 0,
+                decay: 1.0
+            },
+            metadata: {
+                confidence: 0.0,
+                fallback: true,
+                reason: "Decoding failed or input code was unrecognized"
+            }
+        };
+    }
+
 
         /* ---------- FOCAL-POINT CALCULATION ---------- */
     calculateFocalPoints(exp) {
@@ -130,85 +161,147 @@ class PerceptualAlchemyDecoder {
      */
     decode(code, context = {}) {
         const startTime = performance.now();
-        
-        // 1. VALIDATION & ERROR CORRECTION
-        const validated = this.validateAndCorrect(code);
-        if (!validated.valid) {
-            return this.handleInvalidCode(validated);
-        }
-        
-        // 2. SYMBOL SEGMENTATION
-        const segments = this.segmentCode(validated.code);
-        
-        // 3. CORE RECONSTRUCTION
-        const scene = this.reconstructScene(segments.scene);
-        const objects = this.reconstructObjects(segments.objects);
-        const spatial = this.reconstructSpatial(segments.spatial);
-        const emotion = this.reconstructEmotion(segments.emotion);
-        
-        // 4. MEMORY INTEGRATION
-        const memories = this.memoryResonance.findEchoes(validated.code, emotion);
-        
-        // 5. CULTURAL INTERPRETATION
-        const interpreted = this.applyInterpretation(scene, objects, spatial, emotion);
-        
-        // 6. NARRATIVE GENERATION
-        const narrative = this.narrativeEngine.generate(interpreted, memories);
-        
-        // 7. DREAM LOGIC APPLICATION
-        const experience = this.applyDreamLogic(interpreted, memories);
-        
-        // 8. CONFIDENCE CALCULATION
-        const confidence = this.calculateReconstructionConfidence(segments);
-        
-        // 9. ENTROPY DIAGNOSTICS  (place this before the return)
-        const entropy = this.estimateSymbolEntropy(validated.code);   // or codeStr
-
-        // 10. OPTIONAL PALETTE CALCS  (only if you actually need them)
-        const mood  = this.extractMoodPalette(experience);
-        const paint = this.extractColorPalette(experience);
-
-        // -- RETURN ---------------------------------------------------
-        return {
-            experience: {                          // full perceptual state
-                scene     : experience.scene,
-                objects   : experience.objects,
-                spatial   : experience.spatial,
-                emotional : experience.emotional,
-                temporal  : experience.temporal
-            },
-
-            narrative,                              // { primary, variations, poetic }
-
-            memory: {
-                echoes     : memories,
-                resonance  : this.calculateMemoryResonance(memories),
-                decay      : this.estimateMemoryDecay(context.timestamp)
-            },
-
-            rendering: {
-                hints  : this.generateRenderingHints(experience),
-                focus  : this.calculateFocalPoints(experience),
-                palettes : { mood, paint }          // <- optional
-            },
-
-            metrics: {                              // NEW, no clash
-                entropyBitsPerSymbol : entropy.bitsPerSymbol,
-                totalBits            : entropy.totalBits,
-                length               : validated.code.length
-            },
-
-            metadata: {
-                confidence,
-                isReliable      : confidence >= this.confidenceThreshold,
-                mode            : this.mode,
-                culture         : this.culture,
-                processingTime  : performance.now() - startTime
+    
+        let validated, segments, scene, objects, spatial, emotion, memories, interpreted, narrative, experience, confidence, entropy, mood, paint, errorDetails;
+        try {
+            // 1. VALIDATION & ERROR CORRECTION
+            validated = this.validateAndCorrect(code);
+            if (!validated.valid) {
+                errorDetails = validated.error || 'Invalid code';
+                throw new Error(errorDetails);
             }
-        };
-
-        
+    
+            // 2. SYMBOL SEGMENTATION
+            segments = this.segmentCode(validated.code);
+    
+            // 3. CORE RECONSTRUCTION
+            scene   = this.reconstructScene(segments.scene);
+            objects = this.reconstructObjects(segments.objects);
+            spatial = this.reconstructSpatial(segments.spatial);
+            emotion = this.reconstructEmotion(segments.emotion);
+    
+            // 4. MEMORY INTEGRATION
+            memories = this.memoryResonance.findEchoes(validated.code, emotion);
+    
+            // 5. CULTURAL INTERPRETATION
+            interpreted = this.applyInterpretation(scene, objects, spatial, emotion);
+    
+            // 6. NARRATIVE GENERATION
+            narrative = this.narrativeEngine.generate(interpreted, memories);
+    
+            // 7. DREAM LOGIC APPLICATION
+            experience = this.applyDreamLogic(interpreted, memories);
+    
+            // 8. CONFIDENCE CALCULATION
+            confidence = this.calculateReconstructionConfidence(segments);
+    
+            // 9. ENTROPY DIAGNOSTICS
+            entropy = this.estimateSymbolEntropy(validated.code);
+    
+            // 10. OPTIONAL PALETTE CALCS
+            mood  = this.extractMoodPalette ? this.extractMoodPalette(experience) : {};
+            paint = this.extractColorPalette ? this.extractColorPalette(experience) : {};
+    
+            // Defensive defaults for critical fields:
+            if (!narrative || typeof narrative !== 'object') {
+                narrative = {
+                    primary: "A memory that cannot be recalled.",
+                    poetic: "Like sunlight lost behind clouds, the moment slips away, undefined and weightless.",
+                    variations: [],
+                    archetypal: 'unknown'
+                };
+                errorDetails = "Narrative missing or malformed (autofilled).";
+            }
+    
+            // Defensive for experience:
+            if (!experience || typeof experience !== 'object') {
+                experience = {
+                    scene, objects, spatial, emotional: emotion, temporal: {},
+                    error: "Experience pipeline failed; autofilled structure."
+                };
+            }
+    
+            // Defensive for memory:
+            if (!memories) memories = [];
+    
+            // Defensive for entropy:
+            if (!entropy) {
+                entropy = { bitsPerSymbol: 0, totalBits: 0, length: validated.code ? validated.code.length : code.length };
+            }
+    
+            return {
+                experience: {
+                    scene: experience.scene,
+                    objects: experience.objects,
+                    spatial: experience.spatial,
+                    emotional: experience.emotional,
+                    temporal: experience.temporal
+                },
+                narrative,
+                memory: {
+                    echoes: memories,
+                    resonance: this.calculateMemoryResonance ? this.calculateMemoryResonance(memories) : 0,
+                    decay: this.estimateMemoryDecay ? this.estimateMemoryDecay(context.timestamp) : 1.0
+                },
+                rendering: {
+                    hints: this.generateRenderingHints ? this.generateRenderingHints(experience) : {},
+                    focus: this.calculateFocalPoints ? this.calculateFocalPoints(experience) : [{ x: 0.5, y: 0.5, strength: 0 }],
+                    palettes: { mood, paint }
+                },
+                metrics: entropy,
+                metadata: {
+                    confidence,
+                    isReliable: typeof confidence === 'number' ? confidence >= (this.confidenceThreshold || 0.6) : false,
+                    mode: this.mode,
+                    culture: this.culture,
+                    processingTime: performance.now() - startTime,
+                    error: errorDetails
+                }
+            };
+    
+        } catch (error) {
+            // Fallback error path: always produce a fully-structured result
+            console.error('[Decoder] Critical error:', error, {
+                validated, segments, scene, objects, spatial, emotion, memories, interpreted, narrative, experience, confidence, entropy, mood, paint
+            });
+            // Fill as much as possible
+            return {
+                experience: {
+                    scene: scene || null,
+                    objects: objects || [],
+                    spatial: spatial || null,
+                    emotional: emotion || null,
+                    temporal: {}
+                },
+                narrative: {
+                    primary: "A memory that cannot be recalled.",
+                    poetic: "Like sunlight lost behind clouds, the moment slips away, undefined and weightless.",
+                    variations: [],
+                    archetypal: 'unknown'
+                },
+                memory: {
+                    echoes: memories || [],
+                    resonance: 0,
+                    decay: 1.0
+                },
+                rendering: {
+                    hints: {},
+                    focus: [{ x: 0.5, y: 0.5, strength: 0 }],
+                    palettes: { mood: {}, paint: {} }
+                },
+                metrics: entropy || { bitsPerSymbol: 0, totalBits: 0, length: code.length },
+                metadata: {
+                    confidence: 0,
+                    isReliable: false,
+                    mode: this.mode,
+                    culture: this.culture,
+                    processingTime: performance.now() - startTime,
+                    error: error.message || "Decoding pipeline critical error"
+                }
+            };
+        }
     }
+    
     
     // === VALIDATION & ERROR CORRECTION ======================================
     
@@ -282,7 +375,7 @@ class PerceptualAlchemyDecoder {
                 spatial: code.slice(9, 13),
                 emotion: code.slice(13, 16)
             };
-        } else if (length <= 26) {
+        } else if (length <= 28) {
             // Balanced mode
             return {
                 scene: code.slice(0, 4),
@@ -336,22 +429,31 @@ class PerceptualAlchemyDecoder {
         
         for (let i = 0; i < objectCode.length; i += objectSize) {
             const objSegment = objectCode.slice(i, i + objectSize);
-            if (objSegment === '00' || objSegment === '000') continue;
             
-            const decoded = this.decodeObject(objSegment);
-            if (decoded) {
-                // Apply memory associations
-                decoded.memories = this.memoryResonance.findObjectMemories(decoded.type);
+            // Skip padding segments
+            if (objSegment === '00' || objSegment === '000' || objSegment.trim() === '') continue;
+            
+            try {
+                const decoded = this.decodeObject(objSegment);
                 
-                // Apply emotional coloring
-                decoded.emotionalWeight = this.calculateEmotionalWeight(decoded);
-                
-                objects.push(decoded);
+                // Validate decoded object has required properties
+                if (decoded && decoded.type && decoded.position) {
+                    // Apply memory associations
+                    decoded.memories = this.memoryResonance.findObjectMemories(decoded.type);
+                    
+                    // Apply emotional coloring
+                    decoded.emotionalWeight = this.calculateEmotionalWeight(decoded);
+                    
+                    objects.push(decoded);
+                }
+            } catch (error) {
+                console.warn(`Failed to decode object segment '${objSegment}':`, error.message);
+                // Continue processing other objects
             }
         }
         
         // Sort by perceptual importance
-        objects.sort((a, b) => b.importance - a.importance);
+        objects.sort((a, b) => (b.importance || 0) - (a.importance || 0));
         
         return objects;
     }
@@ -410,18 +512,30 @@ class PerceptualAlchemyDecoder {
 
     
     decodeObject(segment) {
-        const type = this.symbolInterpreter.decodeObjectType(segment[0]);
-        if (!type) return null;
-        
+        // Defensive: only allow valid object symbols
+        const allowed = 'abcdefghijklmnopqrstuvwxyz';
+        const code = segment[0]?.toLowerCase();
+    
+        if (!code || !allowed.includes(code)) {
+            // Hard skip and warn
+            console.warn(`[DECODE] Invalid symbol in object segment: '${segment}'. Skipped.`);
+            return null;
+        }
+        const type = this.symbolInterpreter.decodeObjectType(code);
+        if (!type) {
+            console.warn(`[DECODE] Unknown object symbol: '${code}' in segment '${segment}'. Skipped.`);
+            return null;
+        }
+    
         const position = segment[1] ? this.decodePosition(segment[1]) : { x: 0.5, y: 0.5 };
         const size = segment[2] ? this.symbolInterpreter.decodeSize(segment[2]) : 'medium';
-        
+    
         // Calculate perceptual importance
         const importance = this.calculateObjectImportance(type, position, size);
-        
+    
         // Generate archetypal associations
         const archetypes = this.narrativeEngine.getArchetypes(type);
-        
+    
         return {
             type: type.primary,
             variants: type.variants,
@@ -536,6 +650,36 @@ class PerceptualAlchemyDecoder {
         });
         
         return blended;
+    }
+    
+    generateMoodUndertones(mood, lighting) {
+        const undertones = {
+            peaceful: ['serene', 'calm'],
+            tense: ['anxious', 'alert'],
+            melancholic: ['nostalgic', 'wistful'],
+            joyful: ['excited', 'content']
+        };
+        
+        // Modify undertones based on lighting
+        const base = undertones[mood] || ['neutral'];
+        if (lighting.quality === 'dramatic') {
+            return [...base, 'intense'];
+        } else if (lighting.quality === 'soft') {
+            return [...base, 'gentle'];
+        }
+        return base;
+    }
+    
+    synthesizeAtmosphere(scene, lighting, mood) {
+        const warmth = lighting.colorTemp === 'golden' ? 0.8 : 0.3;
+        const sceneModifier = scene.type === 'outdoor' ? 0.2 : -0.1;
+        
+        return {
+            temperature: warmth + sceneModifier,
+            density: mood === 'mysterious' ? 0.7 : 0.3,
+            clarity: lighting.intensity,
+            openness: scene.type === 'outdoor' ? 0.8 : 0.3
+        };
     }
     
         /* ---------- TEMPORAL-FRAGMENT GENERATOR ---------- */
@@ -655,6 +799,18 @@ class PerceptualAlchemyDecoder {
         return this.narrativeEngine.generate(experience, memories);
     }
     
+    generateNarrativeHint(culturalPerception, emotion) {
+        const sceneNarrative = this.describeScene(culturalPerception);
+        const emotionalNarrative = this.describeEmotion(emotion);
+        const poeticHint = this.generatePoeticHint(culturalPerception, emotion);
+        
+        return {
+            primary: `${sceneNarrative} ${emotionalNarrative}`.trim(),
+            variations: [sceneNarrative, emotionalNarrative],
+            poetic: poeticHint,
+            archetypal: 'journey'  // Add this missing field
+        };
+    }
     // === RENDERING HINTS ====================================================
     
     generateRenderingHints(experience) {
@@ -927,6 +1083,31 @@ class SymbolInterpreter {
     
     decodeObjectType(char) {
         return this.objectMappings[char.toLowerCase()] || null;
+    }
+
+    decodeComplexity(char) {
+        const complexityMap = {
+            'α': 'minimal', 'β': 'low',
+            'γ': 'medium', 'δ': 'high'
+        };
+        return complexityMap[char] || 'medium';
+    }
+    
+    decodeSize(char) {
+        const code = char.charCodeAt(0);
+        if (code >= 48 && code <= 57) { // 0-9
+            return ['tiny', 'small', 'medium', 'large', 'huge'][Math.floor(code - 48) / 2];
+        }
+        return 'medium';
+    }
+    
+    decodeTrajectory(char) {
+        const trajectoryMap = {
+            '5': 'escalating', '6': 'calming',
+            '7': 'brightening', '8': 'darkening',
+            '9': 'stable'
+        };
+        return trajectoryMap[char] || 'stable';
     }
     
     decodeFocus(char) {

@@ -7,7 +7,7 @@
 
 class PerceptualAlchemyEncoder {
     constructor(options = {}) {
-        this.mode = options.mode || 'balanced'; // mobile | balanced | rich
+        this.mode = options.mode || 'balanced';
         this.culture = options.culture || 'universal';
         this.emotionalContext = options.emotionalContext || null;
         
@@ -20,9 +20,9 @@ class PerceptualAlchemyEncoder {
         // Emotional trajectory buffer
         this.emotionalBuffer = [];
         
-        // Perceptual constants
-        this.EDGE_THRESHOLD = this.mode === 'mobile' ? 100 : 64;
-        this.SAMPLE_RATE = this.mode === 'mobile' ? 8 : 4;
+        // FIXED: Adjusted thresholds for better object detection
+        this.EDGE_THRESHOLD = this.mode === 'mobile' ? 50 : 30;  // Lowered from 100/64
+        this.SAMPLE_RATE = 1;      // Reduced from 8/4
         
         // Symbol allocation budgets
         this.budgets = {
@@ -34,6 +34,7 @@ class PerceptualAlchemyEncoder {
         // Debug mode for symbol visualization
         this.debug = options.debug || false;
         this.symbolMap = new Map();
+    
     }
     
     // === PUBLIC API =========================================================
@@ -251,14 +252,18 @@ class PerceptualAlchemyEncoder {
         const shapes = [];
         const visited = new Uint8Array(width * height);
         
-        for (let y = 0; y < height; y += this.SAMPLE_RATE * 2) {
-            for (let x = 0; x < width; x += this.SAMPLE_RATE * 2) {
+        // Use finer sampling for shape detection
+        const shapeStep = Math.max(1, this.SAMPLE_RATE);
+        
+        for (let y = 0; y < height; y += shapeStep) {
+            for (let x = 0; x < width; x += shapeStep) {
                 const idx = y * width + x;
                 
                 if (edges.map[idx] > this.EDGE_THRESHOLD && !visited[idx]) {
                     const shape = this.marchingSquares(edges.map, visited, x, y, width, height);
                     
-                    if (shape.area > 20) {
+                    // Lowered minimum area threshold
+                    if (shape.area > 5) {  // Was 20
                         shape.type = this.classifyShape(shape);
                         shape.symbolWeight = this.calculateSymbolWeight(shape);
                         shapes.push(shape);
@@ -482,11 +487,12 @@ class PerceptualAlchemyEncoder {
     analyzeColors(data, width, height) {
         const samples = [];
         const step = this.SAMPLE_RATE * 4;
-        
-        // Adaptive color sampling
+
         for (let y = 0; y < height; y += step) {
             for (let x = 0; x < width; x += step) {
                 const idx = (y * width + x) * 4;
+                // Only count opaque pixels
+                if (data[idx+3] === 0) continue;
                 samples.push({
                     r: data[idx],
                     g: data[idx + 1],
@@ -494,6 +500,10 @@ class PerceptualAlchemyEncoder {
                     x, y
                 });
             }
+        }
+        if (samples.length === 0) {
+            // All transparent—inject a "safe" dummy color
+            samples.push({r: 255, g: 255, b: 255, x:0, y:0});
         }
         
         // Cluster colors using proper CIEDE2000
@@ -685,20 +695,32 @@ class PerceptualAlchemyEncoder {
     
     encodeToSymbols(perception, emotion) {
         const budget = this.budgets[this.mode];
-        let code = '';
-        
+
         // 1. SCENE CONTEXT (adaptive 3-4 chars)
-        code += this.encodeSceneContext(perception, emotion, budget.scene);
-        
+        const sceneCode = this.encodeSceneContext(perception, emotion, budget.scene);
+
         // 2. OBJECTS (entropy-optimized allocation)
         const objectCode = this.encodeObjectsWithEntropy(perception.shapes, budget.objects);
-        code += objectCode;
-        
+
         // 3. SPATIAL (with depth layer)
-        code += this.encodeSpatialWithDepth(perception.spatial, budget.spatial);
-        
+        const spatialCode = this.encodeSpatialWithDepth(perception.spatial, budget.spatial);
+
         // 4. EMOTION (trajectory encoding)
-        code += this.encodeEmotionalTrajectory(emotion, budget.emotion);
+        const emotionCode = this.encodeEmotionalTrajectory(emotion, budget.emotion);
+
+        // Strict segment join
+        let code = sceneCode + objectCode + spatialCode + emotionCode;
+
+        // --- Defensive Segment Validation ---
+        // Enforce objectCode is ONLY a-z
+        const objectsOnly = objectCode.replace(/0/g, ''); // '0' is padding
+        if (/[^a-z]/.test(objectsOnly)) {
+            throw new Error(`[ENCODER] Invalid symbol(s) in object segment: '${objectCode}'. Only 'a'-'z' allowed.`);
+        }
+        // Spatial can have WXYZ01234!@#$%
+        if (/[^WXYZ01234!@#$%A-Z]/.test(spatialCode)) {
+            throw new Error(`[ENCODER] Invalid symbol(s) in spatial segment: '${spatialCode}'.`);
+        }
         
         return code;
     }
@@ -773,8 +795,8 @@ class PerceptualAlchemyEncoder {
      */
     encodePosition(centroid, boundingBox, length = 1) {
         // Normalize position to 0-1
-        const nx = centroid.x / 280; // Assuming standard width
-        const ny = centroid.y / 200; // Assuming standard height
+        const nx = centroid.x / this.imageWidth;  // Set imageWidth in the encoder from the input imageData.width
+        const ny = centroid.y / this.imageHeight; // Ditto for height
         
         if (length === 1) {
             // Single character position encoding (3x3 grid)
@@ -821,6 +843,7 @@ class PerceptualAlchemyEncoder {
             }
         }
         
+        if (code.length > budget) code = code.slice(0, budget);
         return code.padEnd(budget, 'X');
     }
     
@@ -897,20 +920,12 @@ class PerceptualAlchemyEncoder {
     }
     
     generateReedSolomonParity(data, numParity) {
-        // Simplified parity generation
-        // In production, use proper Galois field arithmetic
-        const parity = [];
-        
-        for (let i = 0; i < numParity; i++) {
-            let sum = 0;
-            for (let j = 0; j < data.length; j++) {
-                // Polynomial evaluation in GF(256)
-                sum ^= data.charCodeAt(j) * ((j + 1) ** (i + 1)) % 256;
-            }
-            parity.push(String.fromCharCode(65 + (sum % 26)));
+        // Match the validator's checksum algorithm
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+            sum += data.charCodeAt(i) * (i + 1);
         }
-        
-        return parity.join('');
+        return String.fromCharCode(65 + (sum % 26));
     }
     
     // === NARRATIVE GENERATION ===============================================
@@ -1157,8 +1172,11 @@ class PerceptualAlchemyEncoder {
         return grammars[culture] || grammars.universal;
     }
     
-    getLuminance(data, idx) {
-        const i = idx * 4;
+    getLuminance(data, pixelIndex) {
+        // Ensure we're accessing the correct position in the flat array
+        const i = pixelIndex * 4;
+        if (i + 2 >= data.length) return 0;
+        
         return 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
     }
     
@@ -1209,6 +1227,8 @@ class PerceptualAlchemyEncoder {
             }
         }
         
+
+        
         // Find dominant orientation
         const maxBin = histogram.indexOf(Math.max(...histogram));
         const dominantAngle = (maxBin * 2 * Math.PI / bins) - Math.PI;
@@ -1228,6 +1248,22 @@ class PerceptualAlchemyEncoder {
             dominant: dominantAngle,
             entropy: entropy / Math.log2(bins), // Normalize to 0-1
             histogram
+        };
+    }
+
+    calculateSceneComplexity(perception) {
+        const edgeComplexity = perception.edges.density;
+        const shapeComplexity = Math.min(1, perception.shapes.length / 10);
+        const colorComplexity = Math.min(1, perception.colors.dominantClusters.length / 8);
+        
+        return {
+            edgeDensity: edgeComplexity,
+            perceptualObjects: perception.shapes,
+            colorVariance: {
+                uniqueColorCount: perception.colors.dominantClusters.length,
+                complexity: colorComplexity
+            },
+            overallComplexity: (edgeComplexity + shapeComplexity + colorComplexity) / 3
         };
     }
     
@@ -1261,8 +1297,11 @@ class PerceptualAlchemyEncoder {
     }
     
     classifyShape(shape) {
-        const aspectRatio = shape.boundingBox.width / shape.boundingBox.height;
-        const compactness = shape.area / (shape.perimeter * shape.perimeter);
+        if (!shape || !shape.boundingBox) return 'unknown';
+    
+        const aspectRatio = shape.boundingBox.width / (shape.boundingBox.height || 1);
+        const compactness = shape.area / (shape.perimeter * shape.perimeter || 1);
+
         
         // More sophisticated shape classification
         if (compactness > 0.7) return 'circle';
