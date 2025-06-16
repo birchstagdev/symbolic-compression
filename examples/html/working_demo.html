@@ -284,7 +284,21 @@
 
             encoder = perceptualSystem.encoder;
             decoder = perceptualSystem.decoder;
+            (function smokeTest () {
+                const canvas = document.createElement('canvas');
+                canvas.width = canvas.height = 1;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, 1, 1);
 
+                const smoke = ctx.getImageData(0, 0, 1, 1);
+                try {
+                const res = perceptualSystem.encode(smoke);
+                console.log('[smoke-test] code:', res.code);
+                } catch (err) {
+                console.error('[smoke-test] FAILED:', err);
+                }
+            })();
             // Automated pipeline check
             //try {
                 //const testCode = "ILVδ000000000000Z4%AXXOK6KN";
@@ -301,21 +315,7 @@
         }
 
          /* ───── Smoke test: 1-pixel black image should round-trip ───── */
-  (function smokeTest () {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 1;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, 1, 1);
-
-    const smoke = ctx.getImageData(0, 0, 1, 1);
-    try {
-      const res = perceptualSystem.encode(smoke);
-      console.log('[smoke-test] code:', res.code);
-    } catch (err) {
-      console.error('[smoke-test] FAILED:', err);
-    }
-  })();
+ 
     </script>
 </body>
 </html>
