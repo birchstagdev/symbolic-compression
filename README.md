@@ -91,5 +91,5 @@ MIT License (see `LICENSE` file).
 
 - [ ] Implement and benchmark decoder
 - [ ] Export symbolic visual logs for real scenes
-- [ ] Prototype NPC perceptual integration in *Imagine Being Trapped 2*
+- [ ] Prototype NPC perceptual integration in *When The Sun Dies*
 - [ ] Build visual interpreter: symbolic → textual → graphical
