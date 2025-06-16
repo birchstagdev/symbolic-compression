@@ -43,7 +43,7 @@ To build a perceptual encoding and decoding framework that transforms images and
 
 ---
 
-**Status Update **
+## Status Update
 Bugfixes: test_error_1241_06162025
 The system's vision is sound, symbolic compression of perception is achievable. These fixes address the immediate failures while preserving the philosophical goal of memory, like visual encoding.
 
